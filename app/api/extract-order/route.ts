@@ -7,7 +7,7 @@ import { z } from "zod"
 const VCAOrderSchema = z.object({
   DO: z.string().default("B").describe("Eyes: B=Both, R=Right, L=Left"),
   JOB: z.string().optional().describe("Customer ERP System Order Number"),
-  SHOPNUMBER: z.string().optional().describe("Intermediary ERP Order Number"),
+  SHOPNUMBER: z.string().optional().describe("The practicioner's company name"),
   CLIENT: z.string().optional().describe("Wearer's Name"),
   CLIENTF: z.string().optional().describe("Wearer's Name Abbreviation"),
   LNAM: z.string().optional().describe("Lens Code (format: right;left, e.g., 'OVMDXV;OVMDXV')"),
@@ -95,10 +95,9 @@ Analyze ALL the provided images together to extract the most complete prescripti
 Basic Information:
 - DO: Eyes (B=Both, R=Right, L=Left) - default "B"
 - JOB: Customer ERP System Order Number
-- SHOPNUMBER: Intermediary ERP Order Number  
+- SHOPNUMBER: The practicioner's company name (e.g., "MS OPTOMETRY SDN BHD")
 - CLIENT: Wearer's full name
 - CLIENTF: Wearer's name abbreviation/initials
-- ShopNumber: ERP Query Number
 
 Prescription Values (use right;left format):
 - SPH: Sphere values (e.g., "-1.75;-1.75")
@@ -121,7 +120,7 @@ Frame & Measurements (use right;left format where applicable):
 - BVD: Back Vertex Distance (e.g., "13;13")
 
 Advanced Specifications:
-- LNAM: Lens Code (e.g., "OVMDXV;OVMDXV")
+- LNAM: Lens Code 
 - TINT: Tint Code
 - ACOAT: Coating Code (e.g., "PT GREEN;PT GREEN")
 - COLR: Color Code (e.g., "Gray;Gray")

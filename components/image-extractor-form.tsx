@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -26,12 +26,97 @@ export default function ImageExtractorForm({
   const [formData, setFormData] = useState<any>({
     // Provide default values for required fields
     JOB: `ORD${Date.now().toString().slice(-6)}`,
-    CLIENT: 'Customer Name',
+    CLIENT: 'Wearer Name', // This will be used for display, but SHOPNUMBER will be sent as CLIENT in SOAP
+    SHOPNUMBER: 'Customer/Shop Name', // This will become the CLIENT field in SOAP submission
     DO: 'B',
     // Default credentials
     rxoffice_username: '380',
     rxoffice_password: 'ZOHO123'
   })
+
+  // Debounce timers
+  const [customerSearchTimer, setCustomerSearchTimer] = useState<NodeJS.Timeout | null>(null)
+  const [lensCodeSearchTimer, setLensCodeSearchTimer] = useState<NodeJS.Timeout | null>(null)
+
+  // Helper function to parse VCA format (R;L) into separate values
+  const parseVCAValue = (vcaValue: string | undefined) => {
+    if (!vcaValue) return { right: '', left: '' }
+    const parts = vcaValue.split(';')
+    return {
+      right: parts[0] || '',
+      left: parts[1] || ''
+    }
+  }
+
+  // Helper function to combine separate values into VCA format (R;L)
+  const combineToVCA = (right: string, left: string) => {
+    if (!right && !left) return ''
+    return `${right || ''};${left || ''}`
+  }
+
+  // Debounced customer search function
+  const debouncedCustomerSearch = useCallback(async (value: string) => {
+    if (!value || value.trim().length < 2) return
+
+    try {
+      const response = await fetch('/api/match-customer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: value })
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        if (result.matched && result.code) {
+          // Replace the name with customer code
+          setFormData((prev: any) => ({
+            ...prev,
+            SHOPNUMBER: result.code,
+            originalCustomerName: value,
+            customerMatchInfo: {
+              exactMatch: result.exactMatch,
+              customerName: result.customer.name,
+              customerCity: result.customer.city,
+              alternativeMatches: result.alternativeMatches || []
+            }
+          }))
+        }
+      }
+    } catch (error) {
+      console.error('Error matching customer:', error)
+    }
+  }, [])
+
+  // Debounced lens code search function (updated for single field)
+  const debouncedLensCodeSearch = useCallback(async (value: string) => {
+    if (!value || value.trim().length < 2) return
+
+    try {
+      const response = await fetch('/api/match-lens-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: value })
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        if (result.matched && result.code) {
+          setFormData((prev: any) => ({
+            ...prev,
+            LNAM: result.code,
+            originalLensCode: value,
+            lensCodeMatchInfo: {
+              exactMatch: result.exactMatch,
+              lensCode: result.lensCode,
+              alternativeMatches: result.alternativeMatches || []
+            }
+          }))
+        }
+      }
+    } catch (error) {
+      console.error('Error matching lens code:', error)
+    }
+  }, [])
 
   useEffect(() => {
     if (orderData) {
@@ -43,82 +128,95 @@ export default function ImageExtractorForm({
   }, [orderData])
 
   const handleInputChange = async (field: string, value: string) => {
-    // Handle customer name matching
-    if (field === 'CLIENT') {
-      try {
-        const response = await fetch('/api/match-customer', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: value })
-        })
-        
-        if (response.ok) {
-          const result = await response.json()
-          if (result.matched && result.code) {
-            // Replace the name with customer code
-            setFormData((prev: any) => ({
-              ...prev,
-              [field]: result.code,
-              originalCustomerName: value,
-              customerMatchInfo: {
-                exactMatch: result.exactMatch,
-                customerName: result.customer.name,
-                customerCity: result.customer.city,
-                alternativeMatches: result.alternativeMatches || []
-              }
-            }))
-            return
-          }
-        }
-      } catch (error) {
-        console.error('Error matching customer:', error)
+    // Handle customer name matching for SHOPNUMBER field with debounce
+    if (field === 'SHOPNUMBER') {
+      // Clear existing timer
+      if (customerSearchTimer) {
+        clearTimeout(customerSearchTimer)
       }
+
+      // Update form data immediately
+      setFormData((prev: any) => ({
+        ...prev,
+        [field]: value,
+        customerMatchInfo: null,
+        originalCustomerName: null
+      }))
+
+      // Set new timer for database search
+      const newTimer = setTimeout(() => {
+        debouncedCustomerSearch(value)
+      }, 1000)
+      
+      setCustomerSearchTimer(newTimer)
+      return
     }
 
-    // Handle lens code matching (LNAM field)
+    // Handle lens code matching (LNAM field) with debounce
     if (field === 'LNAM') {
-      try {
-        const response = await fetch('/api/match-lens-code', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code: value })
-        })
-        
-        if (response.ok) {
-          const result = await response.json()
-          if (result.matched && result.code) {
-            // Replace the lens code with matched code
-            setFormData((prev: any) => ({
-              ...prev,
-              [field]: result.code,
-              originalLensCode: value,
-              lensCodeMatchInfo: {
-                exactMatch: result.exactMatch,
-                lensCode: result.lensCode,
-                alternativeMatches: result.alternativeMatches || []
-              }
-            }))
-            return
-          }
-        }
-      } catch (error) {
-        console.error('Error matching lens code:', error)
+      // Clear existing timer
+      if (lensCodeSearchTimer) {
+        clearTimeout(lensCodeSearchTimer)
       }
+
+      // Update form data immediately
+      setFormData((prev: any) => ({
+        ...prev,
+        [field]: value,
+        lensCodeMatchInfo: null,
+        originalLensCode: null
+      }))
+
+      // Set new timer for database search
+      const newTimer = setTimeout(() => {
+        debouncedLensCodeSearch(value)
+      }, 1000)
+      
+      setLensCodeSearchTimer(newTimer)
+      return
     }
 
+    // Regular field updates (non-searchable fields)
     setFormData((prev: any) => ({
       ...prev,
-      [field]: value,
-      // Clear match info if user is editing the fields manually
-      ...(field === 'CLIENT' ? { customerMatchInfo: null, originalCustomerName: null } : {}),
-      ...(field === 'LNAM' ? { lensCodeMatchInfo: null, originalLensCode: null } : {})
+      [field]: value
     }))
   }
 
+  // Handle separate eye field changes (only for prescription fields)
+  const handleEyeFieldChange = (baseField: string, eye: 'right' | 'left', value: string) => {
+    const currentVCA = parseVCAValue(formData[baseField])
+    const newVCA = eye === 'right' 
+      ? combineToVCA(value, currentVCA.left)
+      : combineToVCA(currentVCA.right, value)
+    
+    setFormData((prev: any) => ({
+      ...prev,
+      [baseField]: newVCA
+    }))
+  }
+
+  // Cleanup timers on component unmount
+  useEffect(() => {
+    return () => {
+      if (customerSearchTimer) clearTimeout(customerSearchTimer)
+      if (lensCodeSearchTimer) clearTimeout(lensCodeSearchTimer)
+    }
+  }, [customerSearchTimer, lensCodeSearchTimer])
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    console.log('📤 Form submitting with data:', formData)
-    onSubmit(formData)
+    
+    // Prepare the data for submission
+    // CLIENT field should contain the shop/customer information from SHOPNUMBER
+    const submissionData = {
+      ...formData,
+      CLIENT: formData.SHOPNUMBER || formData.CLIENT, // Use SHOPNUMBER as CLIENT for SOAP order
+      WEARER_NAME: formData.CLIENT // Keep the original wearer's name for reference
+    }
+    
+    console.log('📤 Form submitting with data:', submissionData)
+    onSubmit(submissionData)
   }
 
   const generateOrderId = () => {
@@ -192,7 +290,7 @@ export default function ImageExtractorForm({
                     <Input
                       id="DO"
                       value={formData.DO || "B"}
-                      onChange={(e) => handleInputChange('DO', e.target.value)}
+                      onChange={(e) => handleEyeFieldChange('DO', e.target.value as 'right' | 'left', e.target.value)}
                       placeholder="B, R, or L"
                     />
                   </div>
@@ -226,9 +324,33 @@ export default function ImageExtractorForm({
                       onChange={(e) => handleInputChange('CLIENT', e.target.value)}
                       placeholder="Full name"
                     />
+                  </div>
+                  <div>
+                    <Label htmlFor="CLIENTF">Name Abbreviation</Label>
+                    <Input
+                      id="CLIENTF"
+                      value={formData.CLIENTF || ""}
+                      onChange={(e) => handleInputChange('CLIENTF', e.target.value)}
+                      placeholder="Initials"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <Label htmlFor="SHOPNUMBER">Customer/Shop Name</Label>
+                    <Input
+                      id="SHOPNUMBER"
+                      value={formData.SHOPNUMBER || ""}
+                      onChange={(e) => handleInputChange('SHOPNUMBER', e.target.value)}
+                      placeholder="Customer or Shop Name (used as CLIENT in order)"
+                    />
                     <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
                       <AlertCircle className="h-3 w-3" />
-                      Auto-matched only if exactly matches database name (e.g., "EYELOOK EYEWEAR OPTIC SDN BHD")
+                      Auto-matched if at least partially matches database name (e.g., "EYELOOK EYEWEAR OPTIC SDN BHD")
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      ℹ️ This field will be used as CLIENT in the SOAP order
                     </p>
                     {formData.originalCustomerName && (
                       <div className="mt-1 space-y-1">
@@ -267,27 +389,6 @@ export default function ImageExtractorForm({
                     )}
                   </div>
                   <div>
-                    <Label htmlFor="CLIENTF">Name Abbreviation</Label>
-                    <Input
-                      id="CLIENTF"
-                      value={formData.CLIENTF || ""}
-                      onChange={(e) => handleInputChange('CLIENTF', e.target.value)}
-                      placeholder="Initials"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                  <div>
-                    <Label htmlFor="SHOPNUMBER">Shop Number</Label>
-                    <Input
-                      id="SHOPNUMBER"
-                      value={formData.SHOPNUMBER || ""}
-                      onChange={(e) => handleInputChange('SHOPNUMBER', e.target.value)}
-                      placeholder="Intermediary ERP Order Number"
-                    />
-                  </div>
-                  <div>
                     <Label htmlFor="ShopNumber">ERP Query Number</Label>
                     <Input
                       id="ShopNumber"
@@ -304,87 +405,204 @@ export default function ImageExtractorForm({
               {/* Prescription Data */}
               <div>
                 <h3 className="text-lg font-semibold mb-3">Prescription Data</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="SPH">Sphere (R;L)</Label>
-                    <Input
-                      id="SPH"
-                      value={formData.SPH || ""}
-                      onChange={(e) => handleInputChange('SPH', e.target.value)}
-                      placeholder="e.g., -1.75;-1.75"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="CYL">Cylinder (R;L)</Label>
-                    <Input
-                      id="CYL"
-                      value={formData.CYL || ""}
-                      onChange={(e) => handleInputChange('CYL', e.target.value)}
-                      placeholder="e.g., -0.5;-0.25"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                  <div>
-                    <Label htmlFor="AX">Axis (R;L)</Label>
-                    <Input
-                      id="AX"
-                      value={formData.AX || ""}
-                      onChange={(e) => handleInputChange('AX', e.target.value)}
-                      placeholder="e.g., 45;180"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="ADD">Add Power (R;L)</Label>
-                    <Input
-                      id="ADD"
-                      value={formData.ADD || ""}
-                      onChange={(e) => handleInputChange('ADD', e.target.value)}
-                      placeholder="e.g., 1.75;1.75"
-                    />
+                
+                {/* Sphere */}
+                <div className="mb-4">
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">Sphere</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="SPH_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="SPH_R"
+                        value={parseVCAValue(formData.SPH).right}
+                        onChange={(e) => handleEyeFieldChange('SPH', 'right', e.target.value)}
+                        placeholder="e.g., -1.75"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="SPH_L" className="text-xs text-gray-500">Left Eye</Label>
+                      <Input
+                        id="SPH_L"
+                        value={parseVCAValue(formData.SPH).left}
+                        onChange={(e) => handleEyeFieldChange('SPH', 'left', e.target.value)}
+                        placeholder="e.g., -1.75"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                  <div>
-                    <Label htmlFor="PRVM">Prescription Prism (R;L)</Label>
-                    <Input
-                      id="PRVM"
-                      value={formData.PRVM || ""}
-                      onChange={(e) => handleInputChange('PRVM', e.target.value)}
-                      placeholder="e.g., 0;0"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="PRVA">Prism Base Direction (R;L)</Label>
-                    <Input
-                      id="PRVA"
-                      value={formData.PRVA || ""}
-                      onChange={(e) => handleInputChange('PRVA', e.target.value)}
-                      placeholder="e.g., 0;0"
-                    />
+                {/* Cylinder */}
+                <div className="mb-4">
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">Cylinder</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="CYL_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="CYL_R"
+                        value={parseVCAValue(formData.CYL).right}
+                        onChange={(e) => handleEyeFieldChange('CYL', 'right', e.target.value)}
+                        placeholder="e.g., -0.5"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="CYL_L" className="text-xs text-gray-500">Left Eye</Label>
+                      <Input
+                        id="CYL_L"
+                        value={parseVCAValue(formData.CYL).left}
+                        onChange={(e) => handleEyeFieldChange('CYL', 'left', e.target.value)}
+                        placeholder="e.g., -0.25"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                  <div>
-                    <Label htmlFor="PRVIN">Horizontal Prism Direction (R;L)</Label>
-                    <Input
-                      id="PRVIN"
-                      value={formData.PRVIN || ""}
-                      onChange={(e) => handleInputChange('PRVIN', e.target.value)}
-                      placeholder="e.g., 3;2"
-                    />
+                {/* Axis */}
+                <div className="mb-4">
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">Axis</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="AX_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="AX_R"
+                        value={parseVCAValue(formData.AX).right}
+                        onChange={(e) => handleEyeFieldChange('AX', 'right', e.target.value)}
+                        placeholder="e.g., 45"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="AX_L" className="text-xs text-gray-500">Left Eye</Label>
+                      <Input
+                        id="AX_L"
+                        value={parseVCAValue(formData.AX).left}
+                        onChange={(e) => handleEyeFieldChange('AX', 'left', e.target.value)}
+                        placeholder="e.g., 180"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="PRVUP">Vertical Prism Direction (R;L)</Label>
-                    <Input
-                      id="PRVUP"
-                      value={formData.PRVUP || ""}
-                      onChange={(e) => handleInputChange('PRVUP', e.target.value)}
-                      placeholder="e.g., 1.5;1"
-                    />
+                </div>
+
+                {/* Add Power */}
+                <div className="mb-4">
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">Add Power</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="ADD_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="ADD_R"
+                        value={parseVCAValue(formData.ADD).right}
+                        onChange={(e) => handleEyeFieldChange('ADD', 'right', e.target.value)}
+                        placeholder="e.g., 1.75"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="ADD_L" className="text-xs text-gray-500">Left Eye</Label>
+                      <Input
+                        id="ADD_L"
+                        value={parseVCAValue(formData.ADD).left}
+                        onChange={(e) => handleEyeFieldChange('ADD', 'left', e.target.value)}
+                        placeholder="e.g., 1.75"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Prescription Prism */}
+                <div className="mb-4">
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">Prescription Prism</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="PRVM_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="PRVM_R"
+                        value={parseVCAValue(formData.PRVM).right}
+                        onChange={(e) => handleEyeFieldChange('PRVM', 'right', e.target.value)}
+                        placeholder="e.g., 0"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="PRVM_L" className="text-xs text-gray-500">Left Eye</Label>
+                      <Input
+                        id="PRVM_L"
+                        value={parseVCAValue(formData.PRVM).left}
+                        onChange={(e) => handleEyeFieldChange('PRVM', 'left', e.target.value)}
+                        placeholder="e.g., 0"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Prism Base Direction */}
+                <div className="mb-4">
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">Prism Base Direction</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="PRVA_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="PRVA_R"
+                        value={parseVCAValue(formData.PRVA).right}
+                        onChange={(e) => handleEyeFieldChange('PRVA', 'right', e.target.value)}
+                        placeholder="e.g., 0"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="PRVA_L" className="text-xs text-gray-500">Left Eye</Label>
+                      <Input
+                        id="PRVA_L"
+                        value={parseVCAValue(formData.PRVA).left}
+                        onChange={(e) => handleEyeFieldChange('PRVA', 'left', e.target.value)}
+                        placeholder="e.g., 0"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Horizontal Prism Direction */}
+                <div className="mb-4">
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">Horizontal Prism Direction</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="PRVIN_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="PRVIN_R"
+                        value={parseVCAValue(formData.PRVIN).right}
+                        onChange={(e) => handleEyeFieldChange('PRVIN', 'right', e.target.value)}
+                        placeholder="e.g., 3"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="PRVIN_L" className="text-xs text-gray-500">Left Eye</Label>
+                      <Input
+                        id="PRVIN_L"
+                        value={parseVCAValue(formData.PRVIN).left}
+                        onChange={(e) => handleEyeFieldChange('PRVIN', 'left', e.target.value)}
+                        placeholder="e.g., 2"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Vertical Prism Direction */}
+                <div className="mb-4">
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">Vertical Prism Direction</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="PRVUP_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="PRVUP_R"
+                        value={parseVCAValue(formData.PRVUP).right}
+                        onChange={(e) => handleEyeFieldChange('PRVUP', 'right', e.target.value)}
+                        placeholder="e.g., 1.5"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="PRVUP_L" className="text-xs text-gray-500">Left Eye</Label>
+                      <Input
+                        id="PRVUP_L"
+                        value={parseVCAValue(formData.PRVUP).left}
+                        onChange={(e) => handleEyeFieldChange('PRVUP', 'left', e.target.value)}
+                        placeholder="e.g., 1"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -394,87 +612,190 @@ export default function ImageExtractorForm({
               {/* Frame & Measurements */}
               <div>
                 <h3 className="text-lg font-semibold mb-3">Frame & Measurements</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="IPD">IPD Far (R;L)</Label>
-                    <Input
-                      id="IPD"
-                      value={formData.IPD || ""}
-                      onChange={(e) => handleInputChange('IPD', e.target.value)}
-                      placeholder="e.g., 30.5;30.5"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="NPD">Near PD (R;L)</Label>
-                    <Input
-                      id="NPD"
-                      value={formData.NPD || ""}
-                      onChange={(e) => handleInputChange('NPD', e.target.value)}
-                      placeholder="e.g., 28.57;28.57"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                  <div>
-                    <Label htmlFor="HBOX">Frame Width (R;L)</Label>
-                    <Input
-                      id="HBOX"
-                      value={formData.HBOX || ""}
-                      onChange={(e) => handleInputChange('HBOX', e.target.value)}
-                      placeholder="e.g., 44.95;44.97"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="VBOX">Frame Height (R;L)</Label>
-                    <Input
-                      id="VBOX"
-                      value={formData.VBOX || ""}
-                      onChange={(e) => handleInputChange('VBOX', e.target.value)}
-                      placeholder="e.g., 39.96;40.01"
-                    />
+                
+                {/* IPD Far */}
+                <div className="mb-4">
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">IPD Far</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="IPD_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="IPD_R"
+                        value={parseVCAValue(formData.IPD).right}
+                        onChange={(e) => handleEyeFieldChange('IPD', 'right', e.target.value)}
+                        placeholder="e.g., 30.5"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="IPD_L" className="text-xs text-gray-500">Left Eye</Label>
+                      <Input
+                        id="IPD_L"
+                        value={parseVCAValue(formData.IPD).left}
+                        onChange={(e) => handleEyeFieldChange('IPD', 'left', e.target.value)}
+                        placeholder="e.g., 30.5"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                  <div>
-                    <Label htmlFor="DBL">Bridge Width</Label>
-                    <Input
-                      id="DBL"
-                      value={formData.DBL || ""}
-                      onChange={(e) => handleInputChange('DBL', e.target.value)}
-                      placeholder="e.g., 20"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="FED">Frame Effective Diameter (R;L)</Label>
-                    <Input
-                      id="FED"
-                      value={formData.FED || ""}
-                      onChange={(e) => handleInputChange('FED', e.target.value)}
-                      placeholder="e.g., 49.84;49.92"
-                    />
+                {/* Near PD */}
+                <div className="mb-4">
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">Near PD</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="NPD_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="NPD_R"
+                        value={parseVCAValue(formData.NPD).right}
+                        onChange={(e) => handleEyeFieldChange('NPD', 'right', e.target.value)}
+                        placeholder="e.g., 28.57"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="NPD_L" className="text-xs text-gray-500">Left Eye</Label>
+                      <Input
+                        id="NPD_L"
+                        value={parseVCAValue(formData.NPD).left}
+                        onChange={(e) => handleEyeFieldChange('NPD', 'left', e.target.value)}
+                        placeholder="e.g., 28.57"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                  <div>
-                    <Label htmlFor="SEGHT">Segment Height (R;L)</Label>
-                    <Input
-                      id="SEGHT"
-                      value={formData.SEGHT || ""}
-                      onChange={(e) => handleInputChange('SEGHT', e.target.value)}
-                      placeholder="e.g., 28.04;28.02"
-                    />
+                {/* Frame Width */}
+                <div className="mb-4">
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">Frame Width</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="HBOX_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="HBOX_R"
+                        value={parseVCAValue(formData.HBOX).right}
+                        onChange={(e) => handleEyeFieldChange('HBOX', 'right', e.target.value)}
+                        placeholder="e.g., 44.95"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="HBOX_L" className="text-xs text-gray-500">Left Eye</Label>
+                      <Input
+                        id="HBOX_L"
+                        value={parseVCAValue(formData.HBOX).left}
+                        onChange={(e) => handleEyeFieldChange('HBOX', 'left', e.target.value)}
+                        placeholder="e.g., 44.97"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="BVD">Back Vertex Distance (R;L)</Label>
-                    <Input
-                      id="BVD"
-                      value={formData.BVD || ""}
-                      onChange={(e) => handleInputChange('BVD', e.target.value)}
-                      placeholder="e.g., 13;13"
-                    />
+                </div>
+
+                {/* Frame Height */}
+                <div className="mb-4">
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">Frame Height</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="VBOX_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="VBOX_R"
+                        value={parseVCAValue(formData.VBOX).right}
+                        onChange={(e) => handleEyeFieldChange('VBOX', 'right', e.target.value)}
+                        placeholder="e.g., 39.96"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="VBOX_L" className="text-xs text-gray-500">Left Eye</Label>
+                      <Input
+                        id="VBOX_L"
+                        value={parseVCAValue(formData.VBOX).left}
+                        onChange={(e) => handleEyeFieldChange('VBOX', 'left', e.target.value)}
+                        placeholder="e.g., 40.01"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bridge Width - Single field since it's the same for both eyes */}
+                <div className="mb-4">
+                  <Label htmlFor="DBL">Bridge Width</Label>
+                  <Input
+                    id="DBL"
+                    value={formData.DBL || ""}
+                    onChange={(e) => handleInputChange('DBL', e.target.value)}
+                    placeholder="e.g., 20"
+                  />
+                </div>
+
+                {/* Frame Effective Diameter */}
+                <div className="mb-4">
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">Frame Effective Diameter</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="FED_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="FED_R"
+                        value={parseVCAValue(formData.FED).right}
+                        onChange={(e) => handleEyeFieldChange('FED', 'right', e.target.value)}
+                        placeholder="e.g., 49.84"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="FED_L" className="text-xs text-gray-500">Left Eye</Label>
+                      <Input
+                        id="FED_L"
+                        value={parseVCAValue(formData.FED).left}
+                        onChange={(e) => handleEyeFieldChange('FED', 'left', e.target.value)}
+                        placeholder="e.g., 49.92"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Segment Height */}
+                <div className="mb-4">
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">Segment Height</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="SEGHT_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="SEGHT_R"
+                        value={parseVCAValue(formData.SEGHT).right}
+                        onChange={(e) => handleEyeFieldChange('SEGHT', 'right', e.target.value)}
+                        placeholder="e.g., 28.04"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="SEGHT_L" className="text-xs text-gray-500">Left Eye</Label>
+                      <Input
+                        id="SEGHT_L"
+                        value={parseVCAValue(formData.SEGHT).left}
+                        onChange={(e) => handleEyeFieldChange('SEGHT', 'left', e.target.value)}
+                        placeholder="e.g., 28.02"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Back Vertex Distance */}
+                <div className="mb-4">
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">Back Vertex Distance</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="BVD_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="BVD_R"
+                        value={parseVCAValue(formData.BVD).right}
+                        onChange={(e) => handleEyeFieldChange('BVD', 'right', e.target.value)}
+                        placeholder="e.g., 13"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="BVD_L" className="text-xs text-gray-500">Left Eye</Label>
+                      <Input
+                        id="BVD_L"
+                        value={parseVCAValue(formData.BVD).left}
+                        onChange={(e) => handleEyeFieldChange('BVD', 'left', e.target.value)}
+                        placeholder="e.g., 13"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -484,106 +805,110 @@ export default function ImageExtractorForm({
               {/* Lens & Coating Options */}
               <div>
                 <h3 className="text-lg font-semibold mb-3">Lens & Coating Options</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="LNAM">Lens Code (R;L)</Label>
-                    <Input
-                      id="LNAM"
-                      value={formData.LNAM || ""}
-                      onChange={(e) => handleInputChange('LNAM', e.target.value)}
-                      placeholder="e.g., OVMDXV;OVMDXV"
-                    />
-                    <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" />
-                      Auto-matched only if exactly matches database name (e.g., "RX SV 170-Hi Index Glass")
-                    </p>
-                    {formData.originalLensCode && (
-                      <div className="mt-1 space-y-1">
-                        <p className="text-xs text-gray-500">
-                          Original: {formData.originalLensCode}
-                        </p>
-                        {formData.lensCodeMatchInfo && (
-                          <div className="text-xs">
-                            {formData.lensCodeMatchInfo.exactMatch ? (
-                              <p className="text-green-600">
-                                ✓ Exact match: {formData.lensCodeMatchInfo.lensCode.retail_name || formData.lensCodeMatchInfo.lensCode.retail_code}
+                
+                {/* Lens Code - Single field */}
+                <div className="mb-4">
+                  <Label htmlFor="LNAM">Lens Code</Label>
+                  <Input
+                    id="LNAM"
+                    value={formData.LNAM || ""}
+                    onChange={(e) => handleInputChange('LNAM', e.target.value)}
+                    placeholder="e.g., OVMDXV"
+                  />
+                  <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                      Auto-matched if at least partially matches database name (e.g., "EYELOOK EYEWEAR OPTIC SDN BHD")
+                  </p>
+                  {formData.originalLensCode && (
+                    <div className="mt-1 space-y-1">
+                      <p className="text-xs text-gray-500">
+                        Original: {formData.originalLensCode}
+                      </p>
+                      {formData.lensCodeMatchInfo && (
+                        <div className="text-xs">
+                          {formData.lensCodeMatchInfo.exactMatch ? (
+                            <p className="text-green-600">
+                              ✓ Exact match: {formData.lensCodeMatchInfo.lensCode.retail_name || formData.lensCodeMatchInfo.lensCode.retail_code}
+                              <span className="text-gray-500 ml-1">({formData.lensCodeMatchInfo.lensCode.source})</span>
+                            </p>
+                          ) : (
+                            <div>
+                              <p className="text-yellow-600">
+                                ⚠ Partial match: {formData.lensCodeMatchInfo.lensCode.retail_name || formData.lensCodeMatchInfo.lensCode.retail_code}
                                 <span className="text-gray-500 ml-1">({formData.lensCodeMatchInfo.lensCode.source})</span>
                               </p>
-                            ) : (
-                              <div>
-                                <p className="text-yellow-600">
-                                  ⚠ Partial match: {formData.lensCodeMatchInfo.lensCode.retail_name || formData.lensCodeMatchInfo.lensCode.retail_code}
-                                  <span className="text-gray-500 ml-1">({formData.lensCodeMatchInfo.lensCode.source})</span>
-                                </p>
-                                {formData.lensCodeMatchInfo.alternativeMatches && 
-                                 formData.lensCodeMatchInfo.alternativeMatches.length > 0 && (
-                                  <div className="mt-1">
-                                    <p className="text-gray-500">Other matches:</p>
-                                    {formData.lensCodeMatchInfo.alternativeMatches.slice(0, 3).map((match: any, idx: number) => (
-                                      <p key={idx} className="text-gray-400 ml-2">
-                                        • {match.retail_name || match.retail_code} ({match.source})
-                                      </p>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <Label htmlFor="CustomerRetailName">Product Name (R;L)</Label>
-                    <Input
-                      id="CustomerRetailName"
-                      value={formData.CustomerRetailName || ""}
-                      onChange={(e) => handleInputChange('CustomerRetailName', e.target.value)}
-                      placeholder="Terminal Sales Product Name"
-                    />
-                  </div>
+                              {formData.lensCodeMatchInfo.alternativeMatches && 
+                               formData.lensCodeMatchInfo.alternativeMatches.length > 0 && (
+                                <div className="mt-1">
+                                  <p className="text-gray-500">Other matches:</p>
+                                  {formData.lensCodeMatchInfo.alternativeMatches.slice(0, 3).map((match: any, idx: number) => (
+                                    <p key={idx} className="text-gray-400 ml-2">
+                                      • {match.retail_name || match.retail_code} ({match.source})
+                                    </p>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                  <div>
-                    <Label htmlFor="TINT">Tint Code</Label>
-                    <Input
-                      id="TINT"
-                      value={formData.TINT || ""}
-                      onChange={(e) => handleInputChange('TINT', e.target.value)}
-                      placeholder="Tint code"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="ACOAT">Coating Code (R;L)</Label>
-                    <Input
-                      id="ACOAT"
-                      value={formData.ACOAT || ""}
-                      onChange={(e) => handleInputChange('ACOAT', e.target.value)}
-                      placeholder="e.g., PT GREEN;PT GREEN"
-                    />
-                  </div>
+                {/* Product Name - Single field */}
+                <div className="mb-4">
+                  <Label htmlFor="CustomerRetailName">Product Name</Label>
+                  <Input
+                    id="CustomerRetailName"
+                    value={formData.CustomerRetailName || ""}
+                    onChange={(e) => handleInputChange('CustomerRetailName', e.target.value)}
+                    placeholder="Terminal Sales Product Name"
+                  />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                  <div>
-                    <Label htmlFor="COLR">Color Code (R;L)</Label>
-                    <Input
-                      id="COLR"
-                      value={formData.COLR || ""}
-                      onChange={(e) => handleInputChange('COLR', e.target.value)}
-                      placeholder="e.g., Gray;Gray"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="PANTO">Pantoscopic Tilt (R;L)</Label>
-                    <Input
-                      id="PANTO"
-                      value={formData.PANTO || ""}
-                      onChange={(e) => handleInputChange('PANTO', e.target.value)}
-                      placeholder="Pantoscopic tilt"
-                    />
-                  </div>
+                {/* Tint Code - Single field */}
+                <div className="mb-4">
+                  <Label htmlFor="TINT">Tint Code</Label>
+                  <Input
+                    id="TINT"
+                    value={formData.TINT || ""}
+                    onChange={(e) => handleInputChange('TINT', e.target.value)}
+                    placeholder="Tint code"
+                  />
+                </div>
+
+                {/* Coating Code - Single field */}
+                <div className="mb-4">
+                  <Label htmlFor="ACOAT">Coating Code</Label>
+                  <Input
+                    id="ACOAT"
+                    value={formData.ACOAT || ""}
+                    onChange={(e) => handleInputChange('ACOAT', e.target.value)}
+                    placeholder="e.g., PT GREEN"
+                  />
+                </div>
+
+                {/* Color Code - Single field */}
+                <div className="mb-4">
+                  <Label htmlFor="COLR">Color Code</Label>
+                  <Input
+                    id="COLR"
+                    value={formData.COLR || ""}
+                    onChange={(e) => handleInputChange('COLR', e.target.value)}
+                    placeholder="e.g., Gray"
+                  />
+                </div>
+
+                {/* Pantoscopic Tilt - Single field */}
+                <div className="mb-4">
+                  <Label htmlFor="PANTO">Pantoscopic Tilt</Label>
+                  <Input
+                    id="PANTO"
+                    value={formData.PANTO || ""}
+                    onChange={(e) => handleInputChange('PANTO', e.target.value)}
+                    placeholder="Pantoscopic tilt"
+                  />
                 </div>
               </div>
 
@@ -592,88 +917,149 @@ export default function ImageExtractorForm({
               {/* Advanced Technical Parameters */}
               <div>
                 <h3 className="text-lg font-semibold mb-3">Advanced Technical Parameters</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="CRIB">Diameter 1 (R;L)</Label>
-                    <Input
-                      id="CRIB"
-                      value={formData.CRIB || ""}
-                      onChange={(e) => handleInputChange('CRIB', e.target.value)}
-                      placeholder="e.g., 70;70"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="ELLH">Diameter 2 (R;L)</Label>
-                    <Input
-                      id="ELLH"
-                      value={formData.ELLH || ""}
-                      onChange={(e) => handleInputChange('ELLH', e.target.value)}
-                      placeholder="e.g., 70;70"
-                    />
+                
+                {/* Diameter 1 - Single field */}
+                <div className="mb-4">
+                  <Label htmlFor="CRIB">Diameter 1</Label>
+                  <Input
+                    id="CRIB"
+                    value={formData.CRIB || ""}
+                    onChange={(e) => handleInputChange('CRIB', e.target.value)}
+                    placeholder="e.g., 70"
+                  />
+                </div>
+
+                {/* Diameter 2 - Single field */}
+                <div className="mb-4">
+                  <Label htmlFor="ELLH">Diameter 2</Label>
+                  <Input
+                    id="ELLH"
+                    value={formData.ELLH || ""}
+                    onChange={(e) => handleInputChange('ELLH', e.target.value)}
+                    placeholder="e.g., 70"
+                  />
+                </div>
+
+                {/* Min Edge/Center Thickness */}
+                <div className="mb-4">
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">Min Edge/Center Thickness</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="MINTHKCD_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="MINTHKCD_R"
+                        value={parseVCAValue(formData.MINTHKCD).right}
+                        onChange={(e) => handleEyeFieldChange('MINTHKCD', 'right', e.target.value)}
+                        placeholder="e.g., 0.51"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="MINTHKCD_L" className="text-xs text-gray-500">Left Eye</Label>
+                      <Input
+                        id="MINTHKCD_L"
+                        value={parseVCAValue(formData.MINTHKCD).left}
+                        onChange={(e) => handleEyeFieldChange('MINTHKCD', 'left', e.target.value)}
+                        placeholder="e.g., 0.51"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                  <div>
-                    <Label htmlFor="MINTHKCD">Min Edge/Center Thickness (R;L)</Label>
-                    <Input
-                      id="MINTHKCD"
-                      value={formData.MINTHKCD || ""}
-                      onChange={(e) => handleInputChange('MINTHKCD', e.target.value)}
-                      placeholder="e.g., 0.51;0.51"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="MINCTR">Min Center Thickness (R;L)</Label>
-                    <Input
-                      id="MINCTR"
-                      value={formData.MINCTR || ""}
-                      onChange={(e) => handleInputChange('MINCTR', e.target.value)}
-                      placeholder="e.g., 1.64;1.64"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                  <div>
-                    <Label htmlFor="BCERIN">Horizontal Decentration (R;L)</Label>
-                    <Input
-                      id="BCERIN"
-                      value={formData.BCERIN || ""}
-                      onChange={(e) => handleInputChange('BCERIN', e.target.value)}
-                      placeholder="e.g., 0;0"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="BCERUP">Vertical Decentration (R;L)</Label>
-                    <Input
-                      id="BCERUP"
-                      value={formData.BCERUP || ""}
-                      onChange={(e) => handleInputChange('BCERUP', e.target.value)}
-                      placeholder="e.g., 0;0"
-                    />
+                {/* Min Center Thickness */}
+                <div className="mb-4">
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">Min Center Thickness</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="MINCTR_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="MINCTR_R"
+                        value={parseVCAValue(formData.MINCTR).right}
+                        onChange={(e) => handleEyeFieldChange('MINCTR', 'right', e.target.value)}
+                        placeholder="e.g., 1.64"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="MINCTR_L" className="text-xs text-gray-500">Left Eye</Label>
+                      <Input
+                        id="MINCTR_L"
+                        value={parseVCAValue(formData.MINCTR).left}
+                        onChange={(e) => handleEyeFieldChange('MINCTR', 'left', e.target.value)}
+                        placeholder="e.g., 1.64"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                  <div>
-                    <Label htmlFor="ZTILT">Face Form Tilt (R;L)</Label>
-                    <Input
-                      id="ZTILT"
-                      value={formData.ZTILT || ""}
-                      onChange={(e) => handleInputChange('ZTILT', e.target.value)}
-                      placeholder="Lens surface curve"
-                    />
+                {/* Horizontal Decentration */}
+                <div className="mb-4">
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">Horizontal Decentration</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="BCERIN_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="BCERIN_R"
+                        value={parseVCAValue(formData.BCERIN).right}
+                        onChange={(e) => handleEyeFieldChange('BCERIN', 'right', e.target.value)}
+                        placeholder="e.g., 0"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="BCERIN_L" className="text-xs text-gray-500">Left Eye</Label>
+                      <Input
+                        id="BCERIN_L"
+                        value={parseVCAValue(formData.BCERIN).left}
+                        onChange={(e) => handleEyeFieldChange('BCERIN', 'left', e.target.value)}
+                        placeholder="e.g., 0"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="MBASE">Marked Base Curve (R;L)</Label>
-                    <Input
-                      id="MBASE"
-                      value={formData.MBASE || ""}
-                      onChange={(e) => handleInputChange('MBASE', e.target.value)}
-                      placeholder="Base curve"
-                    />
+                </div>
+
+                {/* Vertical Decentration */}
+                <div className="mb-4">
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">Vertical Decentration</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="BCERUP_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="BCERUP_R"
+                        value={parseVCAValue(formData.BCERUP).right}
+                        onChange={(e) => handleEyeFieldChange('BCERUP', 'right', e.target.value)}
+                        placeholder="e.g., 0"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="BCERUP_L" className="text-xs text-gray-500">Left Eye</Label>
+                      <Input
+                        id="BCERUP_L"
+                        value={parseVCAValue(formData.BCERUP).left}
+                        onChange={(e) => handleEyeFieldChange('BCERUP', 'left', e.target.value)}
+                        placeholder="e.g., 0"
+                      />
+                    </div>
                   </div>
+                </div>
+
+                {/* Face Form Tilt - Single field */}
+                <div className="mb-4">
+                  <Label htmlFor="ZTILT">Face Form Tilt</Label>
+                  <Input
+                    id="ZTILT"
+                    value={formData.ZTILT || ""}
+                    onChange={(e) => handleInputChange('ZTILT', e.target.value)}
+                    placeholder="Lens surface curve"
+                  />
+                </div>
+
+                {/* Marked Base Curve - Single field */}
+                <div className="mb-4">
+                  <Label htmlFor="MBASE">Marked Base Curve</Label>
+                  <Input
+                    id="MBASE"
+                    value={formData.MBASE || ""}
+                    onChange={(e) => handleInputChange('MBASE', e.target.value)}
+                    placeholder="Base curve"
+                  />
                 </div>
               </div>
             </div>

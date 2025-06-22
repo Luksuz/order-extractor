@@ -75,11 +75,43 @@ export default function ImageExtractorForm({
       }
     }
 
+    // Handle lens code matching (LNAM field)
+    if (field === 'LNAM') {
+      try {
+        const response = await fetch('/api/match-lens-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: value })
+        })
+        
+        if (response.ok) {
+          const result = await response.json()
+          if (result.matched && result.code) {
+            // Replace the lens code with matched code
+            setFormData((prev: any) => ({
+              ...prev,
+              [field]: result.code,
+              originalLensCode: value,
+              lensCodeMatchInfo: {
+                exactMatch: result.exactMatch,
+                lensCode: result.lensCode,
+                alternativeMatches: result.alternativeMatches || []
+              }
+            }))
+            return
+          }
+        }
+      } catch (error) {
+        console.error('Error matching lens code:', error)
+      }
+    }
+
     setFormData((prev: any) => ({
       ...prev,
       [field]: value,
-      // Clear customer match info if user is editing the CLIENT field manually
-      ...(field === 'CLIENT' ? { customerMatchInfo: null, originalCustomerName: null } : {})
+      // Clear match info if user is editing the fields manually
+      ...(field === 'CLIENT' ? { customerMatchInfo: null, originalCustomerName: null } : {}),
+      ...(field === 'LNAM' ? { lensCodeMatchInfo: null, originalLensCode: null } : {})
     }))
   }
 
@@ -120,12 +152,40 @@ export default function ImageExtractorForm({
       </CardHeader>
       <CardContent className="flex-1">
         <form onSubmit={handleSubmit} className="h-full flex flex-col">
-          <ScrollArea className="flex-1 pr-4">
+          <ScrollArea className="h-full">
             <div className="space-y-6">
-              
-              {/* Basic Information */}
+              {/* RxOffice Credentials - Moved to top */}
               <div>
-                <h3 className="text-lg font-semibold mb-3">Basic Information</h3>
+                <h3 className="text-lg font-semibold mb-3">RxOffice EDI Credentials</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="rxoffice_username">Username</Label>
+                    <Input
+                      id="rxoffice_username"
+                      value={formData.rxoffice_username || ""}
+                      onChange={(e) => handleInputChange('rxoffice_username', e.target.value)}
+                      placeholder="RxOffice username"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="rxoffice_password">Password</Label>
+                    <Input
+                      id="rxoffice_password"
+                      type="password"
+                      value={formData.rxoffice_password || ""}
+                      onChange={(e) => handleInputChange('rxoffice_password', e.target.value)}
+                      placeholder="RxOffice password"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Basic Order Information */}
+              <div>
+                <h3 className="text-lg font-semibold mb-3">Basic Order Information</h3>
+                
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="DO">Eyes</Label>
@@ -166,6 +226,10 @@ export default function ImageExtractorForm({
                       onChange={(e) => handleInputChange('CLIENT', e.target.value)}
                       placeholder="Full name"
                     />
+                    <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      Auto-matched only if exactly matches database name (e.g., "EYELOOK EYEWEAR OPTIC SDN BHD")
+                    </p>
                     {formData.originalCustomerName && (
                       <div className="mt-1 space-y-1">
                         <p className="text-xs text-gray-500">
@@ -230,34 +294,6 @@ export default function ImageExtractorForm({
                       value={formData.ShopNumber || ""}
                       onChange={(e) => handleInputChange('ShopNumber', e.target.value)}
                       placeholder="ERP Query Number"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* RxOffice Credentials */}
-              <div>
-                <h3 className="text-lg font-semibold mb-3">RxOffice EDI Credentials</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="rxoffice_username">Username</Label>
-                    <Input
-                      id="rxoffice_username"
-                      value={formData.rxoffice_username || ""}
-                      onChange={(e) => handleInputChange('rxoffice_username', e.target.value)}
-                      placeholder="RxOffice username"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="rxoffice_password">Password</Label>
-                    <Input
-                      id="rxoffice_password"
-                      type="password"
-                      value={formData.rxoffice_password || ""}
-                      onChange={(e) => handleInputChange('rxoffice_password', e.target.value)}
-                      placeholder="RxOffice password"
                     />
                   </div>
                 </div>
@@ -457,6 +493,45 @@ export default function ImageExtractorForm({
                       onChange={(e) => handleInputChange('LNAM', e.target.value)}
                       placeholder="e.g., OVMDXV;OVMDXV"
                     />
+                    <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      Auto-matched only if exactly matches database name (e.g., "RX SV 170-Hi Index Glass")
+                    </p>
+                    {formData.originalLensCode && (
+                      <div className="mt-1 space-y-1">
+                        <p className="text-xs text-gray-500">
+                          Original: {formData.originalLensCode}
+                        </p>
+                        {formData.lensCodeMatchInfo && (
+                          <div className="text-xs">
+                            {formData.lensCodeMatchInfo.exactMatch ? (
+                              <p className="text-green-600">
+                                ✓ Exact match: {formData.lensCodeMatchInfo.lensCode.retail_name || formData.lensCodeMatchInfo.lensCode.retail_code}
+                                <span className="text-gray-500 ml-1">({formData.lensCodeMatchInfo.lensCode.source})</span>
+                              </p>
+                            ) : (
+                              <div>
+                                <p className="text-yellow-600">
+                                  ⚠ Partial match: {formData.lensCodeMatchInfo.lensCode.retail_name || formData.lensCodeMatchInfo.lensCode.retail_code}
+                                  <span className="text-gray-500 ml-1">({formData.lensCodeMatchInfo.lensCode.source})</span>
+                                </p>
+                                {formData.lensCodeMatchInfo.alternativeMatches && 
+                                 formData.lensCodeMatchInfo.alternativeMatches.length > 0 && (
+                                  <div className="mt-1">
+                                    <p className="text-gray-500">Other matches:</p>
+                                    {formData.lensCodeMatchInfo.alternativeMatches.slice(0, 3).map((match: any, idx: number) => (
+                                      <p key={idx} className="text-gray-400 ml-2">
+                                        • {match.retail_name || match.retail_code} ({match.source})
+                                      </p>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <Label htmlFor="CustomerRetailName">Product Name (R;L)</Label>

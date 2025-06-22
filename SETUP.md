@@ -45,9 +45,6 @@ RXOFFICE_WSDL_URL=http://127.0.0.1:5000/CommonEDIService.svc?wsdl
 RXOFFICE_USERNAME=380
 RXOFFICE_PASSWORD=ZOHO123
 
-# SOAP Service Configuration
-USE_REAL_SOAP_SERVICE=true
-
 # Application Configuration
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 EOF

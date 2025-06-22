@@ -40,7 +40,7 @@ const VCAOrderSchema = z.object({
   PRVUP: z.string().optional().describe("Vertical Prism Direction (format: right;left, e.g., '1.5;1')"),
   COLR: z.string().optional().describe("Color Code (format: right;left, e.g., 'Gray;Gray')"),
   ShopNumber: z.string().optional().describe("ERP Query Number"),
-  CustomerRetailName: z.string().optional().describe("Terminal Sales Product Name (format: right;left)")
+  CustomerRetailName: z.string().optional().describe("The retail name of the customer")
 })
 
 export async function POST(request: NextRequest) {
@@ -53,35 +53,44 @@ export async function POST(request: NextRequest) {
 
     // Get form data from the request
     const formData = await request.formData()
-    const imageFile = formData.get("image") as File
+    const imageFiles = formData.getAll("images") as File[]
 
-    if (!imageFile) {
-      return NextResponse.json({ error: "No image file provided" }, { status: 400 })
+    if (!imageFiles || imageFiles.length === 0) {
+      return NextResponse.json({ error: "No image files provided" }, { status: 400 })
     }
 
-    console.log("=== Processing Image with VCA Extraction ===")
-    console.log("File:", imageFile.name, "Size:", imageFile.size)
+    console.log("=== Processing Multiple Images with VCA Extraction ===")
+    console.log("Files:", imageFiles.map(f => ({ name: f.name, size: f.size })))
 
-    // Convert image to base64
-    const imageBuffer = await imageFile.arrayBuffer()
-    const base64Image = Buffer.from(imageBuffer).toString("base64")
+    // Convert all images to base64
+    const imageContents = []
+    for (const imageFile of imageFiles) {
+      const imageBuffer = await imageFile.arrayBuffer()
+      const base64Image = Buffer.from(imageBuffer).toString("base64")
+      imageContents.push({
+        type: "image_url",
+        image_url: {
+          url: `data:image/jpeg;base64,${base64Image}`,
+        },
+      })
+    }
 
     // Initialize the LLM with structured output
     const llm = new ChatOpenAI({
-      modelName: "gpt-4o",
+      modelName: "gpt-4.1",
       temperature: 0,
       maxTokens: 2000,
       apiKey: OPENAI_API_KEY,
     }).withStructuredOutput(VCAOrderSchema)
 
-    // Create the message with comprehensive VCA extraction prompt
+    // Create the message with all images and comprehensive VCA extraction prompt
     const message = new HumanMessage({
       content: [
         {
           type: "text",
-          text: `Extract prescription and order information from this image in VCA format.
+          text: `Extract prescription and order information from these ${imageFiles.length} image(s) in VCA format.
 
-Look for the following information and format it correctly:
+Analyze ALL the provided images together to extract the most complete prescription data possible. Look for the following information and format it correctly:
 
 Basic Information:
 - DO: Eyes (B=Both, R=Right, L=Left) - default "B"
@@ -129,20 +138,19 @@ Advanced Specifications:
 
 Important formatting rules:
 - Use semicolon (;) to separate right and left eye values
-- Leave fields empty if not visible in the image
+- Leave fields empty if not visible in any of the images
 - For single eye prescriptions, use appropriate format
-- Extract all visible text and numbers accurately`,
+- Extract all visible text and numbers accurately
+- Combine information from all images to create the most complete prescription
+- If multiple images show the same information, use the clearest/most readable version
+- If images show conflicting information, prioritize the most recent or clearest data`,
         },
-        {
-          type: "image_url",
-          image_url: {
-            url: `data:image/jpeg;base64,${base64Image}`,
-          },
-        },
+        ...imageContents,
       ],
     })
 
-    // Process the image with LangChain
+    // Process all images with LangChain in a single call
+    console.log(`Processing ${imageFiles.length} images together...`)
     const response = await llm.invoke([message])
 
     console.log("VCA extraction successful:", response)
@@ -150,11 +158,15 @@ Important formatting rules:
     // Return the extracted VCA data
     return NextResponse.json({
       success: true,
-      data: response
+      data: response,
+      metadata: {
+        imagesProcessed: imageFiles.length,
+        fileNames: imageFiles.map(f => f.name)
+      }
     })
 
   } catch (error) {
-    console.error("Error processing image:", error)
+    console.error("Error processing images:", error)
 
     return NextResponse.json(
       { 

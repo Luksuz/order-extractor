@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { AlertCircle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Separator } from "@/components/ui/separator"
 
 interface ImageExtractorFormProps {
   orderData?: any
@@ -23,23 +23,69 @@ export default function ImageExtractorForm({
   isLoading = false, 
   error 
 }: ImageExtractorFormProps) {
-  const [formData, setFormData] = useState<any>({})
+  const [formData, setFormData] = useState<any>({
+    // Provide default values for required fields
+    JOB: `ORD${Date.now().toString().slice(-6)}`,
+    CLIENT: 'Customer Name',
+    DO: 'B',
+    // Default credentials
+    rxoffice_username: '380',
+    rxoffice_password: 'ZOHO123'
+  })
 
   useEffect(() => {
     if (orderData) {
-      setFormData(orderData)
+      setFormData((prevData: any) => ({
+        ...prevData, // Keep defaults
+        ...orderData // Override with extracted data
+      }))
     }
   }, [orderData])
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = async (field: string, value: string) => {
+    // Handle customer name matching
+    if (field === 'CLIENT') {
+      try {
+        const response = await fetch('/api/match-customer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: value })
+        })
+        
+        if (response.ok) {
+          const result = await response.json()
+          if (result.matched && result.code) {
+            // Replace the name with customer code
+            setFormData((prev: any) => ({
+              ...prev,
+              [field]: result.code,
+              originalCustomerName: value,
+              customerMatchInfo: {
+                exactMatch: result.exactMatch,
+                customerName: result.customer.name,
+                customerCity: result.customer.city,
+                alternativeMatches: result.alternativeMatches || []
+              }
+            }))
+            return
+          }
+        }
+      } catch (error) {
+        console.error('Error matching customer:', error)
+      }
+    }
+
     setFormData((prev: any) => ({
       ...prev,
-      [field]: value
+      [field]: value,
+      // Clear customer match info if user is editing the CLIENT field manually
+      ...(field === 'CLIENT' ? { customerMatchInfo: null, originalCustomerName: null } : {})
     }))
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('📤 Form submitting with data:', formData)
     onSubmit(formData)
   }
 
@@ -75,15 +121,11 @@ export default function ImageExtractorForm({
       <CardContent className="flex-1">
         <form onSubmit={handleSubmit} className="h-full flex flex-col">
           <ScrollArea className="flex-1 pr-4">
-            <Tabs defaultValue="basic" className="w-full">
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="basic">Basic</TabsTrigger>
-                <TabsTrigger value="prescription">Prescription</TabsTrigger>
-                <TabsTrigger value="frame">Frame</TabsTrigger>
-                <TabsTrigger value="advanced">Advanced</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="basic" className="space-y-4 mt-4">
+            <div className="space-y-6">
+              
+              {/* Basic Information */}
+              <div>
+                <h3 className="text-lg font-semibold mb-3">Basic Information</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="DO">Eyes</Label>
@@ -115,7 +157,7 @@ export default function ImageExtractorForm({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4 mt-4">
                   <div>
                     <Label htmlFor="CLIENT">Wearer's Name</Label>
                     <Input
@@ -124,6 +166,41 @@ export default function ImageExtractorForm({
                       onChange={(e) => handleInputChange('CLIENT', e.target.value)}
                       placeholder="Full name"
                     />
+                    {formData.originalCustomerName && (
+                      <div className="mt-1 space-y-1">
+                        <p className="text-xs text-gray-500">
+                          Original: {formData.originalCustomerName}
+                        </p>
+                        {formData.customerMatchInfo && (
+                          <div className="text-xs">
+                            {formData.customerMatchInfo.exactMatch ? (
+                              <p className="text-green-600">
+                                ✓ Exact match: {formData.customerMatchInfo.customerName}
+                                {formData.customerMatchInfo.customerCity && ` (${formData.customerMatchInfo.customerCity})`}
+                              </p>
+                            ) : (
+                              <div>
+                                <p className="text-yellow-600">
+                                  ⚠ Partial match: {formData.customerMatchInfo.customerName}
+                                  {formData.customerMatchInfo.customerCity && ` (${formData.customerMatchInfo.customerCity})`}
+                                </p>
+                                {formData.customerMatchInfo.alternativeMatches && 
+                                 formData.customerMatchInfo.alternativeMatches.length > 0 && (
+                                  <div className="mt-1">
+                                    <p className="text-gray-500">Other matches:</p>
+                                    {formData.customerMatchInfo.alternativeMatches.slice(0, 3).map((match: any, idx: number) => (
+                                      <p key={idx} className="text-gray-400 ml-2">
+                                        • {match.name} ({match.city || 'No city'})
+                                      </p>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <Label htmlFor="CLIENTF">Name Abbreviation</Label>
@@ -136,7 +213,7 @@ export default function ImageExtractorForm({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4 mt-4">
                   <div>
                     <Label htmlFor="SHOPNUMBER">Shop Number</Label>
                     <Input
@@ -156,9 +233,41 @@ export default function ImageExtractorForm({
                     />
                   </div>
                 </div>
-              </TabsContent>
+              </div>
 
-              <TabsContent value="prescription" className="space-y-4 mt-4">
+              <Separator />
+
+              {/* RxOffice Credentials */}
+              <div>
+                <h3 className="text-lg font-semibold mb-3">RxOffice EDI Credentials</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="rxoffice_username">Username</Label>
+                    <Input
+                      id="rxoffice_username"
+                      value={formData.rxoffice_username || ""}
+                      onChange={(e) => handleInputChange('rxoffice_username', e.target.value)}
+                      placeholder="RxOffice username"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="rxoffice_password">Password</Label>
+                    <Input
+                      id="rxoffice_password"
+                      type="password"
+                      value={formData.rxoffice_password || ""}
+                      onChange={(e) => handleInputChange('rxoffice_password', e.target.value)}
+                      placeholder="RxOffice password"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Prescription Data */}
+              <div>
+                <h3 className="text-lg font-semibold mb-3">Prescription Data</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="SPH">Sphere (R;L)</Label>
@@ -180,7 +289,7 @@ export default function ImageExtractorForm({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4 mt-4">
                   <div>
                     <Label htmlFor="AX">Axis (R;L)</Label>
                     <Input
@@ -201,7 +310,7 @@ export default function ImageExtractorForm({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4 mt-4">
                   <div>
                     <Label htmlFor="PRVM">Prescription Prism (R;L)</Label>
                     <Input
@@ -222,7 +331,7 @@ export default function ImageExtractorForm({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4 mt-4">
                   <div>
                     <Label htmlFor="PRVIN">Horizontal Prism Direction (R;L)</Label>
                     <Input
@@ -242,9 +351,13 @@ export default function ImageExtractorForm({
                     />
                   </div>
                 </div>
-              </TabsContent>
+              </div>
 
-              <TabsContent value="frame" className="space-y-4 mt-4">
+              <Separator />
+
+              {/* Frame & Measurements */}
+              <div>
+                <h3 className="text-lg font-semibold mb-3">Frame & Measurements</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="IPD">IPD Far (R;L)</Label>
@@ -266,7 +379,7 @@ export default function ImageExtractorForm({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4 mt-4">
                   <div>
                     <Label htmlFor="HBOX">Frame Width (R;L)</Label>
                     <Input
@@ -287,7 +400,7 @@ export default function ImageExtractorForm({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4 mt-4">
                   <div>
                     <Label htmlFor="DBL">Bridge Width</Label>
                     <Input
@@ -308,7 +421,7 @@ export default function ImageExtractorForm({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4 mt-4">
                   <div>
                     <Label htmlFor="SEGHT">Segment Height (R;L)</Label>
                     <Input
@@ -328,9 +441,13 @@ export default function ImageExtractorForm({
                     />
                   </div>
                 </div>
-              </TabsContent>
+              </div>
 
-              <TabsContent value="advanced" className="space-y-4 mt-4">
+              <Separator />
+
+              {/* Lens & Coating Options */}
+              <div>
+                <h3 className="text-lg font-semibold mb-3">Lens & Coating Options</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="LNAM">Lens Code (R;L)</Label>
@@ -352,7 +469,7 @@ export default function ImageExtractorForm({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4 mt-4">
                   <div>
                     <Label htmlFor="TINT">Tint Code</Label>
                     <Input
@@ -373,7 +490,7 @@ export default function ImageExtractorForm({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4 mt-4">
                   <div>
                     <Label htmlFor="COLR">Color Code (R;L)</Label>
                     <Input
@@ -393,7 +510,13 @@ export default function ImageExtractorForm({
                     />
                   </div>
                 </div>
+              </div>
 
+              <Separator />
+
+              {/* Advanced Technical Parameters */}
+              <div>
+                <h3 className="text-lg font-semibold mb-3">Advanced Technical Parameters</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="CRIB">Diameter 1 (R;L)</Label>
@@ -415,7 +538,7 @@ export default function ImageExtractorForm({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4 mt-4">
                   <div>
                     <Label htmlFor="MINTHKCD">Min Edge/Center Thickness (R;L)</Label>
                     <Input
@@ -436,7 +559,7 @@ export default function ImageExtractorForm({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4 mt-4">
                   <div>
                     <Label htmlFor="BCERIN">Horizontal Decentration (R;L)</Label>
                     <Input
@@ -457,7 +580,7 @@ export default function ImageExtractorForm({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4 mt-4">
                   <div>
                     <Label htmlFor="ZTILT">Face Form Tilt (R;L)</Label>
                     <Input
@@ -477,8 +600,8 @@ export default function ImageExtractorForm({
                     />
                   </div>
                 </div>
-              </TabsContent>
-            </Tabs>
+              </div>
+            </div>
           </ScrollArea>
 
           {error && (

@@ -7,7 +7,7 @@ import { z } from "zod"
 const VCAOrderSchema = z.object({
   DO: z.string().default("B").describe("Eyes: B=Both, R=Right, L=Left"),
   JOB: z.string().optional().describe("Customer ERP System Order Number"),
-  SHOPNUMBER: z.string().optional().describe("The practicioner's company name"),
+  SHOPNUMBER: z.string().optional().describe("The customer's company name or customer code if available"),
   CLIENT: z.string().optional().describe("Wearer's Name"),
   CLIENTF: z.string().optional().describe("Wearer's Name Abbreviation"),
   LNAM: z.string().optional().describe("Lens Code (format: right;left, e.g., 'OVMDXV;OVMDXV')"),
@@ -95,7 +95,7 @@ Analyze ALL the provided images together to extract the most complete prescripti
 Basic Information:
 - DO: Eyes (B=Both, R=Right, L=Left) - default "B"
 - JOB: Customer ERP System Order Number
-- SHOPNUMBER: The practicioner's company name (e.g., "MS OPTOMETRY SDN BHD")
+- SHOPNUMBER: The customer's company name or customer code if name is not available (e.g., "MS OPTOMETRY SDN BHD")
 - CLIENT: Wearer's full name
 - CLIENTF: Wearer's name abbreviation/initials
 

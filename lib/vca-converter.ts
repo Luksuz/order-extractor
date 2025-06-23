@@ -55,16 +55,11 @@ export function convertToVCA(orderData: OrderData): string {
   
   const vcaFields: string[] = []
 
-  // Helper function to add field if it exists and is not empty
+  // Helper function to add field - always include, even if empty
   const addField = (key: string, value?: string) => {
-    if (value && value.trim() !== '') {
-      // Ensure R;L values are properly formatted
-      const formattedValue = value.trim()
-      console.log(`✅ Adding VCA field: ${key}=${formattedValue}`)
-      vcaFields.push(`${key}=${formattedValue}`)
-    } else {
-      console.log(`⚠️ Skipping empty field: ${key} (value: ${value})`)
-    }
+    const formattedValue = value?.trim() || '' // Use empty string if no value
+    console.log(`✅ Adding VCA field: ${key}=${formattedValue}`)
+    vcaFields.push(`${key}=${formattedValue}`)
   }
 
   // Basic Information - Required fields first

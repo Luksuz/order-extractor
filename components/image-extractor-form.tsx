@@ -75,6 +75,8 @@ export default function ImageExtractorForm({
             originalCustomerName: value,
             customerMatchInfo: {
               exactMatch: result.exactMatch,
+              fuzzyMatch: result.fuzzyMatch,
+              matchType: result.matchType,
               customerName: result.customer.name,
               customerCity: result.customer.city,
               alternativeMatches: result.alternativeMatches || []
@@ -362,6 +364,21 @@ export default function ImageExtractorForm({
                             {formData.customerMatchInfo.exactMatch ? (
                               <p className="text-green-600">
                                 ✓ Exact match: {formData.customerMatchInfo.customerName}
+                                {formData.customerMatchInfo.customerCity && ` (${formData.customerMatchInfo.customerCity})`}
+                              </p>
+                            ) : formData.customerMatchInfo.matchType === 'substring' || formData.customerMatchInfo.matchType === 'normalized_substring' ? (
+                              <p className="text-blue-600">
+                                🎯 Smart match (substring): {formData.customerMatchInfo.customerName}
+                                {formData.customerMatchInfo.customerCity && ` (${formData.customerMatchInfo.customerCity})`}
+                              </p>
+                            ) : formData.customerMatchInfo.matchType === 'keyword' ? (
+                              <p className="text-purple-600">
+                                🔍 Keyword match: {formData.customerMatchInfo.customerName}
+                                {formData.customerMatchInfo.customerCity && ` (${formData.customerMatchInfo.customerCity})`}
+                              </p>
+                            ) : formData.customerMatchInfo.fuzzyMatch ? (
+                              <p className="text-blue-600">
+                                🎯 Smart match: {formData.customerMatchInfo.customerName}
                                 {formData.customerMatchInfo.customerCity && ` (${formData.customerMatchInfo.customerCity})`}
                               </p>
                             ) : (
@@ -817,7 +834,7 @@ export default function ImageExtractorForm({
                   />
                   <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
                     <AlertCircle className="h-3 w-3" />
-                      Auto-matched if at least partially matches database name (e.g., "EYELOOK EYEWEAR OPTIC SDN BHD")
+                      Auto-matched if at least partially matches database name (e.g., "SV_POLY")
                   </p>
                   {formData.originalLensCode && (
                     <div className="mt-1 space-y-1">

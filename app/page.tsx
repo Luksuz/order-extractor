@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card"
 import ImageExtractorForm from "@/components/image-extractor-form"
 import { toast } from "sonner"
 import Image from "next/image"
-import ImageCarousel from "../components/image-carousel"
+import ImageCarousel from "@/components/image-carousel"
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false)
@@ -490,12 +490,12 @@ export default function Home() {
           {/* Main Content Area - Reorganized Layout */}
           {extractedOrder ? (
             <div className="flex flex-col lg:flex-row gap-6 min-h-[80vh]">
-              {/* Left Sidebar - Sticky Image Carousel */}
+              {/* Left Half - Image Carousel */}
               {imagePreviews.length > 0 && (
-                <div className="lg:w-80 w-full flex-shrink-0">
+                <div className="lg:w-1/2 w-full flex-shrink-0">
                   <div className="lg:sticky lg:top-6">
-                    <Card className="overflow-hidden border-0 shadow-lg bg-white/50 backdrop-blur-sm">
-                      <div className="p-4">
+                    <Card className="overflow-hidden border-0 shadow-lg bg-white/50 backdrop-blur-sm h-full">
+                      <div className="p-4 h-full flex flex-col">
                         <div className="flex items-center gap-2 mb-4">
                           <FileImage className="h-5 w-5 text-blue-600" />
                           <h3 className="text-lg font-semibold text-gray-900">
@@ -504,12 +504,15 @@ export default function Home() {
                         </div>
                         
                         {/* Image Carousel */}
-                        <ImageCarousel 
-                          images={imagePreviews} 
-                          selectedImages={selectedImages}
-                          onRemoveImage={removeImage}
-                          isLoading={isLoading}
-                        />
+                        <div className="flex-1">
+                          <ImageCarousel 
+                            images={imagePreviews} 
+                            selectedImages={selectedImages}
+                            onRemoveImage={removeImage}
+                            isLoading={isLoading}
+                            fullSize={true}
+                          />
+                        </div>
                         
                         {/* Image Actions */}
                         <div className="flex gap-2 mt-4">
@@ -549,8 +552,8 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Main Content - Form */}
-              <div className="flex-1 min-w-0">
+              {/* Right Half - Form */}
+              <div className="lg:w-1/2 w-full min-w-0">
                 <ImageExtractorForm
                   orderData={extractedOrder}
                   onSubmit={handleFormSubmit}
@@ -560,11 +563,11 @@ export default function Home() {
               </div>
             </div>
           ) : (
-            /* Show original layout when no extracted order */
+            /* Show half-screen layout when no extracted order */
             imagePreviews.length > 0 && (
-              <div className="flex flex-col xl:flex-row gap-6 min-h-[80vh]">
-                {/* Image Preview - Responsive Layout */}
-                <div className="xl:w-3/5 w-full">
+              <div className="flex flex-col lg:flex-row gap-6 min-h-[80vh]">
+                {/* Left Half - Image Preview */}
+                <div className="lg:w-1/2 w-full">
                   <Card className="h-full overflow-hidden border-0 shadow-lg bg-white/50 backdrop-blur-sm">
                     <div className="p-6 h-full flex flex-col">
                       <div className="flex items-center gap-2 mb-4">
@@ -587,8 +590,8 @@ export default function Home() {
                   </Card>
                 </div>
 
-                {/* Extracted Form - Takes remaining space */}
-                <div className="xl:w-2/5 w-full">
+                {/* Right Half - Form */}
+                <div className="lg:w-1/2 w-full">
                   <ImageExtractorForm
                     orderData={extractedOrder}
                     onSubmit={handleFormSubmit}

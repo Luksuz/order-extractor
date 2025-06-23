@@ -411,20 +411,20 @@ export default function ImageExtractorForm({
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">Sphere</Label>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="SPH_R" className="text-xs text-gray-500">Right Eye</Label>
-                      <Input
-                        id="SPH_R"
-                        value={parseVCAValue(formData.SPH).right}
-                        onChange={(e) => handleEyeFieldChange('SPH', 'right', e.target.value)}
-                        placeholder="e.g., -1.75"
-                      />
-                    </div>
-                    <div>
                       <Label htmlFor="SPH_L" className="text-xs text-gray-500">Left Eye</Label>
                       <Input
                         id="SPH_L"
                         value={parseVCAValue(formData.SPH).left}
                         onChange={(e) => handleEyeFieldChange('SPH', 'left', e.target.value)}
+                        placeholder="e.g., -1.75"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="SPH_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="SPH_R"
+                        value={parseVCAValue(formData.SPH).right}
+                        onChange={(e) => handleEyeFieldChange('SPH', 'right', e.target.value)}
                         placeholder="e.g., -1.75"
                       />
                     </div>
@@ -436,21 +436,21 @@ export default function ImageExtractorForm({
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">Cylinder</Label>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="CYL_R" className="text-xs text-gray-500">Right Eye</Label>
-                      <Input
-                        id="CYL_R"
-                        value={parseVCAValue(formData.CYL).right}
-                        onChange={(e) => handleEyeFieldChange('CYL', 'right', e.target.value)}
-                        placeholder="e.g., -0.5"
-                      />
-                    </div>
-                    <div>
                       <Label htmlFor="CYL_L" className="text-xs text-gray-500">Left Eye</Label>
                       <Input
                         id="CYL_L"
                         value={parseVCAValue(formData.CYL).left}
                         onChange={(e) => handleEyeFieldChange('CYL', 'left', e.target.value)}
                         placeholder="e.g., -0.25"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="CYL_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="CYL_R"
+                        value={parseVCAValue(formData.CYL).right}
+                        onChange={(e) => handleEyeFieldChange('CYL', 'right', e.target.value)}
+                        placeholder="e.g., -0.5"
                       />
                     </div>
                   </div>
@@ -461,21 +461,21 @@ export default function ImageExtractorForm({
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">Axis</Label>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="AX_R" className="text-xs text-gray-500">Right Eye</Label>
-                      <Input
-                        id="AX_R"
-                        value={parseVCAValue(formData.AX).right}
-                        onChange={(e) => handleEyeFieldChange('AX', 'right', e.target.value)}
-                        placeholder="e.g., 45"
-                      />
-                    </div>
-                    <div>
                       <Label htmlFor="AX_L" className="text-xs text-gray-500">Left Eye</Label>
                       <Input
                         id="AX_L"
                         value={parseVCAValue(formData.AX).left}
                         onChange={(e) => handleEyeFieldChange('AX', 'left', e.target.value)}
                         placeholder="e.g., 180"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="AX_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="AX_R"
+                        value={parseVCAValue(formData.AX).right}
+                        onChange={(e) => handleEyeFieldChange('AX', 'right', e.target.value)}
+                        placeholder="e.g., 45"
                       />
                     </div>
                   </div>
@@ -486,20 +486,20 @@ export default function ImageExtractorForm({
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">Add Power</Label>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="ADD_R" className="text-xs text-gray-500">Right Eye</Label>
-                      <Input
-                        id="ADD_R"
-                        value={parseVCAValue(formData.ADD).right}
-                        onChange={(e) => handleEyeFieldChange('ADD', 'right', e.target.value)}
-                        placeholder="e.g., 1.75"
-                      />
-                    </div>
-                    <div>
                       <Label htmlFor="ADD_L" className="text-xs text-gray-500">Left Eye</Label>
                       <Input
                         id="ADD_L"
                         value={parseVCAValue(formData.ADD).left}
                         onChange={(e) => handleEyeFieldChange('ADD', 'left', e.target.value)}
+                        placeholder="e.g., 1.75"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="ADD_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="ADD_R"
+                        value={parseVCAValue(formData.ADD).right}
+                        onChange={(e) => handleEyeFieldChange('ADD', 'right', e.target.value)}
                         placeholder="e.g., 1.75"
                       />
                     </div>
@@ -511,20 +511,20 @@ export default function ImageExtractorForm({
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">Prescription Prism</Label>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="PRVM_R" className="text-xs text-gray-500">Right Eye</Label>
-                      <Input
-                        id="PRVM_R"
-                        value={parseVCAValue(formData.PRVM).right}
-                        onChange={(e) => handleEyeFieldChange('PRVM', 'right', e.target.value)}
-                        placeholder="e.g., 0"
-                      />
-                    </div>
-                    <div>
                       <Label htmlFor="PRVM_L" className="text-xs text-gray-500">Left Eye</Label>
                       <Input
                         id="PRVM_L"
                         value={parseVCAValue(formData.PRVM).left}
                         onChange={(e) => handleEyeFieldChange('PRVM', 'left', e.target.value)}
+                        placeholder="e.g., 0"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="PRVM_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="PRVM_R"
+                        value={parseVCAValue(formData.PRVM).right}
+                        onChange={(e) => handleEyeFieldChange('PRVM', 'right', e.target.value)}
                         placeholder="e.g., 0"
                       />
                     </div>
@@ -536,20 +536,20 @@ export default function ImageExtractorForm({
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">Prism Base Direction</Label>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="PRVA_R" className="text-xs text-gray-500">Right Eye</Label>
-                      <Input
-                        id="PRVA_R"
-                        value={parseVCAValue(formData.PRVA).right}
-                        onChange={(e) => handleEyeFieldChange('PRVA', 'right', e.target.value)}
-                        placeholder="e.g., 0"
-                      />
-                    </div>
-                    <div>
                       <Label htmlFor="PRVA_L" className="text-xs text-gray-500">Left Eye</Label>
                       <Input
                         id="PRVA_L"
                         value={parseVCAValue(formData.PRVA).left}
                         onChange={(e) => handleEyeFieldChange('PRVA', 'left', e.target.value)}
+                        placeholder="e.g., 0"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="PRVA_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="PRVA_R"
+                        value={parseVCAValue(formData.PRVA).right}
+                        onChange={(e) => handleEyeFieldChange('PRVA', 'right', e.target.value)}
                         placeholder="e.g., 0"
                       />
                     </div>
@@ -561,21 +561,21 @@ export default function ImageExtractorForm({
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">Horizontal Prism Direction</Label>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="PRVIN_R" className="text-xs text-gray-500">Right Eye</Label>
-                      <Input
-                        id="PRVIN_R"
-                        value={parseVCAValue(formData.PRVIN).right}
-                        onChange={(e) => handleEyeFieldChange('PRVIN', 'right', e.target.value)}
-                        placeholder="e.g., 3"
-                      />
-                    </div>
-                    <div>
                       <Label htmlFor="PRVIN_L" className="text-xs text-gray-500">Left Eye</Label>
                       <Input
                         id="PRVIN_L"
                         value={parseVCAValue(formData.PRVIN).left}
                         onChange={(e) => handleEyeFieldChange('PRVIN', 'left', e.target.value)}
                         placeholder="e.g., 2"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="PRVIN_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="PRVIN_R"
+                        value={parseVCAValue(formData.PRVIN).right}
+                        onChange={(e) => handleEyeFieldChange('PRVIN', 'right', e.target.value)}
+                        placeholder="e.g., 3"
                       />
                     </div>
                   </div>
@@ -586,21 +586,21 @@ export default function ImageExtractorForm({
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">Vertical Prism Direction</Label>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="PRVUP_R" className="text-xs text-gray-500">Right Eye</Label>
-                      <Input
-                        id="PRVUP_R"
-                        value={parseVCAValue(formData.PRVUP).right}
-                        onChange={(e) => handleEyeFieldChange('PRVUP', 'right', e.target.value)}
-                        placeholder="e.g., 1.5"
-                      />
-                    </div>
-                    <div>
                       <Label htmlFor="PRVUP_L" className="text-xs text-gray-500">Left Eye</Label>
                       <Input
                         id="PRVUP_L"
                         value={parseVCAValue(formData.PRVUP).left}
                         onChange={(e) => handleEyeFieldChange('PRVUP', 'left', e.target.value)}
                         placeholder="e.g., 1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="PRVUP_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="PRVUP_R"
+                        value={parseVCAValue(formData.PRVUP).right}
+                        onChange={(e) => handleEyeFieldChange('PRVUP', 'right', e.target.value)}
+                        placeholder="e.g., 1.5"
                       />
                     </div>
                   </div>
@@ -618,20 +618,20 @@ export default function ImageExtractorForm({
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">IPD Far</Label>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="IPD_R" className="text-xs text-gray-500">Right Eye</Label>
-                      <Input
-                        id="IPD_R"
-                        value={parseVCAValue(formData.IPD).right}
-                        onChange={(e) => handleEyeFieldChange('IPD', 'right', e.target.value)}
-                        placeholder="e.g., 30.5"
-                      />
-                    </div>
-                    <div>
                       <Label htmlFor="IPD_L" className="text-xs text-gray-500">Left Eye</Label>
                       <Input
                         id="IPD_L"
                         value={parseVCAValue(formData.IPD).left}
                         onChange={(e) => handleEyeFieldChange('IPD', 'left', e.target.value)}
+                        placeholder="e.g., 30.5"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="IPD_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="IPD_R"
+                        value={parseVCAValue(formData.IPD).right}
+                        onChange={(e) => handleEyeFieldChange('IPD', 'right', e.target.value)}
                         placeholder="e.g., 30.5"
                       />
                     </div>
@@ -643,20 +643,20 @@ export default function ImageExtractorForm({
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">Near PD</Label>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="NPD_R" className="text-xs text-gray-500">Right Eye</Label>
-                      <Input
-                        id="NPD_R"
-                        value={parseVCAValue(formData.NPD).right}
-                        onChange={(e) => handleEyeFieldChange('NPD', 'right', e.target.value)}
-                        placeholder="e.g., 28.57"
-                      />
-                    </div>
-                    <div>
                       <Label htmlFor="NPD_L" className="text-xs text-gray-500">Left Eye</Label>
                       <Input
                         id="NPD_L"
                         value={parseVCAValue(formData.NPD).left}
                         onChange={(e) => handleEyeFieldChange('NPD', 'left', e.target.value)}
+                        placeholder="e.g., 28.57"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="NPD_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="NPD_R"
+                        value={parseVCAValue(formData.NPD).right}
+                        onChange={(e) => handleEyeFieldChange('NPD', 'right', e.target.value)}
                         placeholder="e.g., 28.57"
                       />
                     </div>
@@ -668,21 +668,21 @@ export default function ImageExtractorForm({
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">Frame Width</Label>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="HBOX_R" className="text-xs text-gray-500">Right Eye</Label>
-                      <Input
-                        id="HBOX_R"
-                        value={parseVCAValue(formData.HBOX).right}
-                        onChange={(e) => handleEyeFieldChange('HBOX', 'right', e.target.value)}
-                        placeholder="e.g., 44.95"
-                      />
-                    </div>
-                    <div>
                       <Label htmlFor="HBOX_L" className="text-xs text-gray-500">Left Eye</Label>
                       <Input
                         id="HBOX_L"
                         value={parseVCAValue(formData.HBOX).left}
                         onChange={(e) => handleEyeFieldChange('HBOX', 'left', e.target.value)}
                         placeholder="e.g., 44.97"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="HBOX_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="HBOX_R"
+                        value={parseVCAValue(formData.HBOX).right}
+                        onChange={(e) => handleEyeFieldChange('HBOX', 'right', e.target.value)}
+                        placeholder="e.g., 44.95"
                       />
                     </div>
                   </div>
@@ -693,21 +693,21 @@ export default function ImageExtractorForm({
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">Frame Height</Label>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="VBOX_R" className="text-xs text-gray-500">Right Eye</Label>
-                      <Input
-                        id="VBOX_R"
-                        value={parseVCAValue(formData.VBOX).right}
-                        onChange={(e) => handleEyeFieldChange('VBOX', 'right', e.target.value)}
-                        placeholder="e.g., 39.96"
-                      />
-                    </div>
-                    <div>
                       <Label htmlFor="VBOX_L" className="text-xs text-gray-500">Left Eye</Label>
                       <Input
                         id="VBOX_L"
                         value={parseVCAValue(formData.VBOX).left}
                         onChange={(e) => handleEyeFieldChange('VBOX', 'left', e.target.value)}
                         placeholder="e.g., 40.01"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="VBOX_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="VBOX_R"
+                        value={parseVCAValue(formData.VBOX).right}
+                        onChange={(e) => handleEyeFieldChange('VBOX', 'right', e.target.value)}
+                        placeholder="e.g., 39.96"
                       />
                     </div>
                   </div>
@@ -729,21 +729,21 @@ export default function ImageExtractorForm({
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">Frame Effective Diameter</Label>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="FED_R" className="text-xs text-gray-500">Right Eye</Label>
-                      <Input
-                        id="FED_R"
-                        value={parseVCAValue(formData.FED).right}
-                        onChange={(e) => handleEyeFieldChange('FED', 'right', e.target.value)}
-                        placeholder="e.g., 49.84"
-                      />
-                    </div>
-                    <div>
                       <Label htmlFor="FED_L" className="text-xs text-gray-500">Left Eye</Label>
                       <Input
                         id="FED_L"
                         value={parseVCAValue(formData.FED).left}
                         onChange={(e) => handleEyeFieldChange('FED', 'left', e.target.value)}
                         placeholder="e.g., 49.92"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="FED_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="FED_R"
+                        value={parseVCAValue(formData.FED).right}
+                        onChange={(e) => handleEyeFieldChange('FED', 'right', e.target.value)}
+                        placeholder="e.g., 49.84"
                       />
                     </div>
                   </div>
@@ -754,21 +754,21 @@ export default function ImageExtractorForm({
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">Segment Height</Label>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="SEGHT_R" className="text-xs text-gray-500">Right Eye</Label>
-                      <Input
-                        id="SEGHT_R"
-                        value={parseVCAValue(formData.SEGHT).right}
-                        onChange={(e) => handleEyeFieldChange('SEGHT', 'right', e.target.value)}
-                        placeholder="e.g., 28.04"
-                      />
-                    </div>
-                    <div>
                       <Label htmlFor="SEGHT_L" className="text-xs text-gray-500">Left Eye</Label>
                       <Input
                         id="SEGHT_L"
                         value={parseVCAValue(formData.SEGHT).left}
                         onChange={(e) => handleEyeFieldChange('SEGHT', 'left', e.target.value)}
                         placeholder="e.g., 28.02"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="SEGHT_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="SEGHT_R"
+                        value={parseVCAValue(formData.SEGHT).right}
+                        onChange={(e) => handleEyeFieldChange('SEGHT', 'right', e.target.value)}
+                        placeholder="e.g., 28.04"
                       />
                     </div>
                   </div>
@@ -779,20 +779,20 @@ export default function ImageExtractorForm({
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">Back Vertex Distance</Label>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="BVD_R" className="text-xs text-gray-500">Right Eye</Label>
-                      <Input
-                        id="BVD_R"
-                        value={parseVCAValue(formData.BVD).right}
-                        onChange={(e) => handleEyeFieldChange('BVD', 'right', e.target.value)}
-                        placeholder="e.g., 13"
-                      />
-                    </div>
-                    <div>
                       <Label htmlFor="BVD_L" className="text-xs text-gray-500">Left Eye</Label>
                       <Input
                         id="BVD_L"
                         value={parseVCAValue(formData.BVD).left}
                         onChange={(e) => handleEyeFieldChange('BVD', 'left', e.target.value)}
+                        placeholder="e.g., 13"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="BVD_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="BVD_R"
+                        value={parseVCAValue(formData.BVD).right}
+                        onChange={(e) => handleEyeFieldChange('BVD', 'right', e.target.value)}
                         placeholder="e.g., 13"
                       />
                     </div>
@@ -945,20 +945,20 @@ export default function ImageExtractorForm({
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">Min Edge/Center Thickness</Label>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="MINTHKCD_R" className="text-xs text-gray-500">Right Eye</Label>
-                      <Input
-                        id="MINTHKCD_R"
-                        value={parseVCAValue(formData.MINTHKCD).right}
-                        onChange={(e) => handleEyeFieldChange('MINTHKCD', 'right', e.target.value)}
-                        placeholder="e.g., 0.51"
-                      />
-                    </div>
-                    <div>
                       <Label htmlFor="MINTHKCD_L" className="text-xs text-gray-500">Left Eye</Label>
                       <Input
                         id="MINTHKCD_L"
                         value={parseVCAValue(formData.MINTHKCD).left}
                         onChange={(e) => handleEyeFieldChange('MINTHKCD', 'left', e.target.value)}
+                        placeholder="e.g., 0.51"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="MINTHKCD_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="MINTHKCD_R"
+                        value={parseVCAValue(formData.MINTHKCD).right}
+                        onChange={(e) => handleEyeFieldChange('MINTHKCD', 'right', e.target.value)}
                         placeholder="e.g., 0.51"
                       />
                     </div>
@@ -970,20 +970,20 @@ export default function ImageExtractorForm({
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">Min Center Thickness</Label>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="MINCTR_R" className="text-xs text-gray-500">Right Eye</Label>
-                      <Input
-                        id="MINCTR_R"
-                        value={parseVCAValue(formData.MINCTR).right}
-                        onChange={(e) => handleEyeFieldChange('MINCTR', 'right', e.target.value)}
-                        placeholder="e.g., 1.64"
-                      />
-                    </div>
-                    <div>
                       <Label htmlFor="MINCTR_L" className="text-xs text-gray-500">Left Eye</Label>
                       <Input
                         id="MINCTR_L"
                         value={parseVCAValue(formData.MINCTR).left}
                         onChange={(e) => handleEyeFieldChange('MINCTR', 'left', e.target.value)}
+                        placeholder="e.g., 1.64"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="MINCTR_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="MINCTR_R"
+                        value={parseVCAValue(formData.MINCTR).right}
+                        onChange={(e) => handleEyeFieldChange('MINCTR', 'right', e.target.value)}
                         placeholder="e.g., 1.64"
                       />
                     </div>
@@ -995,20 +995,20 @@ export default function ImageExtractorForm({
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">Horizontal Decentration</Label>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="BCERIN_R" className="text-xs text-gray-500">Right Eye</Label>
-                      <Input
-                        id="BCERIN_R"
-                        value={parseVCAValue(formData.BCERIN).right}
-                        onChange={(e) => handleEyeFieldChange('BCERIN', 'right', e.target.value)}
-                        placeholder="e.g., 0"
-                      />
-                    </div>
-                    <div>
                       <Label htmlFor="BCERIN_L" className="text-xs text-gray-500">Left Eye</Label>
                       <Input
                         id="BCERIN_L"
                         value={parseVCAValue(formData.BCERIN).left}
                         onChange={(e) => handleEyeFieldChange('BCERIN', 'left', e.target.value)}
+                        placeholder="e.g., 0"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="BCERIN_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="BCERIN_R"
+                        value={parseVCAValue(formData.BCERIN).right}
+                        onChange={(e) => handleEyeFieldChange('BCERIN', 'right', e.target.value)}
                         placeholder="e.g., 0"
                       />
                     </div>
@@ -1020,20 +1020,20 @@ export default function ImageExtractorForm({
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">Vertical Decentration</Label>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="BCERUP_R" className="text-xs text-gray-500">Right Eye</Label>
-                      <Input
-                        id="BCERUP_R"
-                        value={parseVCAValue(formData.BCERUP).right}
-                        onChange={(e) => handleEyeFieldChange('BCERUP', 'right', e.target.value)}
-                        placeholder="e.g., 0"
-                      />
-                    </div>
-                    <div>
                       <Label htmlFor="BCERUP_L" className="text-xs text-gray-500">Left Eye</Label>
                       <Input
                         id="BCERUP_L"
                         value={parseVCAValue(formData.BCERUP).left}
                         onChange={(e) => handleEyeFieldChange('BCERUP', 'left', e.target.value)}
+                        placeholder="e.g., 0"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="BCERUP_R" className="text-xs text-gray-500">Right Eye</Label>
+                      <Input
+                        id="BCERUP_R"
+                        value={parseVCAValue(formData.BCERUP).right}
+                        onChange={(e) => handleEyeFieldChange('BCERUP', 'right', e.target.value)}
                         placeholder="e.g., 0"
                       />
                     </div>

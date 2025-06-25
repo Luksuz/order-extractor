@@ -13,7 +13,7 @@ const RXOFFICE_CONFIG = {
 const SOAP_OPTIONS = {
   disableCache: true,
   timeout: 30000, // 30 seconds timeout
-  connectionTimeout: 15000, // 15 seconds connection timeout
+  connectionTimeout: 30000, // 15 seconds connection timeout
   forceSoap12Headers: false,
   preserveWhitespace: false
 }

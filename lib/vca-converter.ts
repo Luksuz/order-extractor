@@ -114,9 +114,14 @@ export function convertToVCA(orderData: OrderData): string {
   addField('ZTILT', orderData.ZTILT)
   addField('MBASE', orderData.MBASE)
 
-  // Join all fields with semicolons (VCA format)
-  const vca = vcaFields.join(';')
-  console.log('📤 Generated VCA string:', vca)
+  // Join all fields with newlines instead of semicolons for better readability
+  const vca = vcaFields.join('\n')
+  
+  console.log('📤 Generated VCA string (raw):', JSON.stringify(vca))
+  console.log('📤 Generated VCA string (formatted):')
+  console.log(vca)
+  console.log('📤 VCA string length:', vca.length)
+  console.log('📤 Number of lines:', vca.split('\n').length)
   console.log('🔄 === VCA CONVERSION END ===')
   
   return vca
@@ -176,7 +181,24 @@ export function validateOrderData(orderData: OrderData): { isValid: boolean; err
   }
 }
 
-// Example usage:
-// const orderData = { JOB: 'ORD123', CLIENT: 'CUST001', SPH: '-1.75;-1.75', ... }
+// Example usage with smart matching system:
+// If smart matching finds a code:
+// const orderData = { JOB: 'ORD123', CLIENT: 'CUST001', SHOPNUMBER: 'MYA001|Myapecs Optical', SPH: '-1.75;-1.75', ... }
+// If no match found:
+// const orderData = { JOB: 'ORD123', CLIENT: 'CUST001', SHOPNUMBER: 'Unknown Shop', SPH: '-1.75;-1.75', ... }
 // const vca = convertToVCA(orderData)
-// console.log(vca) // "DO=B;JOB=ORD123;CLIENT=CUST001;SPH=-1.75;-1.75;..." 
+// console.log(vca) 
+// Output (with match):
+// DO=B
+// JOB=ORD123
+// CLIENT=CUST001
+// SHOPNUMBER=MYA001|Myapecs Optical
+// SPH=-1.75;-1.75
+// ...
+// Output (no match):
+// DO=B
+// JOB=ORD123
+// CLIENT=CUST001
+// SHOPNUMBER=Unknown Shop
+// SPH=-1.75;-1.75
+// ... 

@@ -37,6 +37,8 @@ export default function ImageExtractorForm({
   // Debounce timers
   const [customerSearchTimer, setCustomerSearchTimer] = useState<NodeJS.Timeout | null>(null)
   const [lensCodeSearchTimer, setLensCodeSearchTimer] = useState<NodeJS.Timeout | null>(null)
+  const [tintCodeSearchTimer, setTintCodeSearchTimer] = useState<NodeJS.Timeout | null>(null)
+  const [coatingCodeSearchTimer, setCoatingCodeSearchTimer] = useState<NodeJS.Timeout | null>(null)
 
   // Helper function to parse VCA format (R;L) into separate values
   const parseVCAValue = (vcaValue: string | undefined) => {
@@ -68,10 +70,11 @@ export default function ImageExtractorForm({
       if (response.ok) {
         const result = await response.json()
         if (result.matched && result.code) {
-          // Replace the name with customer code
+          // Format as "CODE/original_customer_name" when match is found
+          const formattedShopNumber = `${result.code}|${result.customer.name}`
           setFormData((prev: any) => ({
             ...prev,
-            SHOPNUMBER: result.code,
+            SHOPNUMBER: formattedShopNumber,
             originalCustomerName: value,
             customerMatchInfo: {
               exactMatch: result.exactMatch,
@@ -120,6 +123,68 @@ export default function ImageExtractorForm({
     }
   }, [])
 
+  // Debounced tint code search function
+  const debouncedTintCodeSearch = useCallback(async (value: string) => {
+    if (!value || value.trim().length < 2) return
+
+    try {
+      const response = await fetch('/api/match-lens-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: value })
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        if (result.matched && result.code) {
+          setFormData((prev: any) => ({
+            ...prev,
+            TINT: result.code,
+            originalTintCode: value,
+            tintCodeMatchInfo: {
+              exactMatch: result.exactMatch,
+              tintCode: result.lensCode,
+              alternativeMatches: result.alternativeMatches || []
+            }
+          }))
+        }
+      }
+    } catch (error) {
+      console.error('Error matching tint code:', error)
+    }
+  }, [])
+
+  // Debounced coating code search function
+  const debouncedCoatingCodeSearch = useCallback(async (value: string) => {
+    if (!value || value.trim().length < 2) return
+
+    try {
+      const response = await fetch('/api/match-lens-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: value })
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        if (result.matched && result.code) {
+          setFormData((prev: any) => ({
+            ...prev,
+            ACOAT: result.code,
+            originalCoatingCode: value,
+            coatingCodeMatchInfo: {
+              exactMatch: result.exactMatch,
+              coatingCode: result.lensCode,
+              alternativeMatches: result.alternativeMatches || []
+            }
+          }))
+        }
+      }
+    } catch (error) {
+      console.error('Error matching coating code:', error)
+    }
+  }, [])
+
   useEffect(() => {
     if (orderData) {
       setFormData((prevData: any) => ({
@@ -154,7 +219,7 @@ export default function ImageExtractorForm({
       return
     }
 
-    // Handle lens code matching (LNAM field) with debounce
+    // Handle lens code matching (LNAM field) with debounce and sync both eyes
     if (field === 'LNAM') {
       // Clear existing timer
       if (lensCodeSearchTimer) {
@@ -178,6 +243,54 @@ export default function ImageExtractorForm({
       return
     }
 
+    // Handle tint code matching with debounce
+    if (field === 'TINT') {
+      // Clear existing timer
+      if (tintCodeSearchTimer) {
+        clearTimeout(tintCodeSearchTimer)
+      }
+
+      // Update form data immediately
+      setFormData((prev: any) => ({
+        ...prev,
+        [field]: value,
+        tintCodeMatchInfo: null,
+        originalTintCode: null
+      }))
+
+      // Set new timer for database search
+      const newTimer = setTimeout(() => {
+        debouncedTintCodeSearch(value)
+      }, 1000)
+      
+      setTintCodeSearchTimer(newTimer)
+      return
+    }
+
+    // Handle coating code matching with debounce
+    if (field === 'ACOAT') {
+      // Clear existing timer
+      if (coatingCodeSearchTimer) {
+        clearTimeout(coatingCodeSearchTimer)
+      }
+
+      // Update form data immediately
+      setFormData((prev: any) => ({
+        ...prev,
+        [field]: value,
+        coatingCodeMatchInfo: null,
+        originalCoatingCode: null
+      }))
+
+      // Set new timer for database search
+      const newTimer = setTimeout(() => {
+        debouncedCoatingCodeSearch(value)
+      }, 1000)
+      
+      setCoatingCodeSearchTimer(newTimer)
+      return
+    }
+
     // Regular field updates (non-searchable fields)
     setFormData((prev: any) => ({
       ...prev,
@@ -187,6 +300,64 @@ export default function ImageExtractorForm({
 
   // Handle separate eye field changes (only for prescription fields)
   const handleEyeFieldChange = (baseField: string, eye: 'right' | 'left', value: string) => {
+    // Special handling for lens codes - sync both eyes when database match is found
+    if (baseField === 'LNAM') {
+      // Clear existing timer
+      if (lensCodeSearchTimer) {
+        clearTimeout(lensCodeSearchTimer)
+      }
+
+      // Update the specific eye immediately
+      const currentVCA = parseVCAValue(formData[baseField])
+      const newVCA = eye === 'right' 
+        ? combineToVCA(value, currentVCA.left)
+        : combineToVCA(currentVCA.right, value)
+      
+      setFormData((prev: any) => ({
+        ...prev,
+        [baseField]: newVCA,
+        lensCodeMatchInfo: null,
+        originalLensCode: null
+      }))
+
+      // Set new timer for database search - will sync both eyes if match found
+      const newTimer = setTimeout(async () => {
+        if (!value || value.trim().length < 2) return
+
+        try {
+          const response = await fetch('/api/match-lens-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: value })
+          })
+          
+          if (response.ok) {
+            const result = await response.json()
+            if (result.matched && result.code) {
+              // Sync both eyes with the matched code
+              const syncedVCA = `${result.code};${result.code}`
+              setFormData((prev: any) => ({
+                ...prev,
+                LNAM: syncedVCA,
+                originalLensCode: value,
+                lensCodeMatchInfo: {
+                  exactMatch: result.exactMatch,
+                  lensCode: result.lensCode,
+                  alternativeMatches: result.alternativeMatches || []
+                }
+              }))
+            }
+          }
+        } catch (error) {
+          console.error('Error matching lens code:', error)
+        }
+      }, 1000)
+      
+      setLensCodeSearchTimer(newTimer)
+      return
+    }
+
+    // Regular handling for other eye fields
     const currentVCA = parseVCAValue(formData[baseField])
     const newVCA = eye === 'right' 
       ? combineToVCA(value, currentVCA.left)
@@ -203,8 +374,10 @@ export default function ImageExtractorForm({
     return () => {
       if (customerSearchTimer) clearTimeout(customerSearchTimer)
       if (lensCodeSearchTimer) clearTimeout(lensCodeSearchTimer)
+      if (tintCodeSearchTimer) clearTimeout(tintCodeSearchTimer)
+      if (coatingCodeSearchTimer) clearTimeout(coatingCodeSearchTimer)
     }
-  }, [customerSearchTimer, lensCodeSearchTimer])
+  }, [customerSearchTimer, lensCodeSearchTimer, tintCodeSearchTimer, coatingCodeSearchTimer])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -243,67 +416,68 @@ export default function ImageExtractorForm({
   }
 
   return (
-    <Card className="h-full">
-      <CardHeader>
-        <CardTitle>Extracted Order Data</CardTitle>
-        <CardDescription>
-          Review and edit the extracted prescription data before submitting
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex-1">
+    <div className="h-full flex flex-col bg-white">
+      <div className="flex-shrink-0 p-4 border-b border-gray-200">
+        <h2 className="text-xl font-bold text-gray-900">Extracted Order Data</h2>
+        <p className="text-sm text-gray-600">Review and edit the extracted prescription data before submitting</p>
+      </div>
+      
+      <div className="flex-1 min-h-0">
         <form onSubmit={handleSubmit} className="h-full flex flex-col">
-          <ScrollArea className="h-full">
-            <div className="space-y-6">
-              {/* RxOffice Credentials - Moved to top */}
-              <div>
-                <h3 className="text-lg font-semibold mb-3">RxOffice EDI Credentials</h3>
-                <div className="grid grid-cols-2 gap-4">
+          {/* Submit Button at Top */}
+          <div className="flex-shrink-0 p-4 border-b border-gray-200">
+            <Button 
+              type="submit" 
+              disabled={isLoading}
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+            >
+              {isLoading ? "Submitting..." : "Submit Order"}
+            </Button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-w-none">
+              {/* RxOffice Credentials */}
+              <div className="lg:col-span-2">
+                <h3 className="text-base font-semibold mb-2">Customer Service Login</h3>
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label htmlFor="rxoffice_username">Username</Label>
+                    <Label htmlFor="rxoffice_username" className="text-xs">Username</Label>
                     <Input
                       id="rxoffice_username"
                       value={formData.rxoffice_username || ""}
                       onChange={(e) => handleInputChange('rxoffice_username', e.target.value)}
                       placeholder="RxOffice username"
+                      className="h-8 text-sm"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="rxoffice_password">Password</Label>
+                    <Label htmlFor="rxoffice_password" className="text-xs">Password</Label>
                     <Input
                       id="rxoffice_password"
                       type="password"
                       value={formData.rxoffice_password || ""}
                       onChange={(e) => handleInputChange('rxoffice_password', e.target.value)}
                       placeholder="RxOffice password"
+                      className="h-8 text-sm"
                     />
                   </div>
                 </div>
               </div>
 
-              <Separator />
-
               {/* Basic Order Information */}
-              <div>
-                <h3 className="text-lg font-semibold mb-3">Basic Order Information</h3>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="DO">Eyes</Label>
-                    <Input
-                      id="DO"
-                      value={formData.DO || "B"}
-                      onChange={(e) => handleEyeFieldChange('DO', e.target.value as 'right' | 'left', e.target.value)}
-                      placeholder="B, R, or L"
-                    />
-                  </div>
+              <div className="lg:col-span-2">
+                <h3 className="text-base font-semibold mb-2">Basic Information</h3>
+                <div className="grid grid-cols-3 gap-3">
                   <div className="flex items-end gap-2">
                     <div className="flex-1">
-                      <Label htmlFor="JOB">Order ID</Label>
+                      <Label htmlFor="JOB" className="text-xs">Reference</Label>
                       <Input
                         id="JOB"
                         value={formData.JOB || ""}
                         onChange={(e) => handleInputChange('JOB', e.target.value)}
-                        placeholder="Customer ERP Order Number"
+                        placeholder="Order Number"
+                        className="h-8 text-sm"
                       />
                     </div>
                     <Button 
@@ -311,140 +485,74 @@ export default function ImageExtractorForm({
                       variant="outline" 
                       size="sm"
                       onClick={generateOrderId}
+                      className="h-8 px-2 text-xs"
                     >
-                      Generate
+                      Gen
                     </Button>
                   </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 mt-4">
                   <div>
-                    <Label htmlFor="CLIENT">Wearer's Name</Label>
-                    <Input
-                      id="CLIENT"
-                      value={formData.CLIENT || ""}
-                      onChange={(e) => handleInputChange('CLIENT', e.target.value)}
-                      placeholder="Full name"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="CLIENTF">Name Abbreviation</Label>
-                    <Input
-                      id="CLIENTF"
-                      value={formData.CLIENTF || ""}
-                      onChange={(e) => handleInputChange('CLIENTF', e.target.value)}
-                      placeholder="Initials"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                  <div>
-                    <Label htmlFor="SHOPNUMBER">Customer/Shop Name</Label>
-                    <Input
-                      id="SHOPNUMBER"
-                      value={formData.SHOPNUMBER || ""}
-                      onChange={(e) => handleInputChange('SHOPNUMBER', e.target.value)}
-                      placeholder="Customer or Shop Name (used as CLIENT in order)"
-                    />
-                    <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" />
-                      Auto-matched if at least partially matches database name (e.g., "EYELOOK EYEWEAR OPTIC SDN BHD")
-                    </p>
-                    <p className="text-xs text-blue-600 mt-1">
-                      ℹ️ This field will be used as CLIENT in the SOAP order
-                    </p>
-                    {formData.originalCustomerName && (
-                      <div className="mt-1 space-y-1">
-                        <p className="text-xs text-gray-500">
-                          Original: {formData.originalCustomerName}
-                        </p>
-                        {formData.customerMatchInfo && (
-                          <div className="text-xs">
-                            {formData.customerMatchInfo.exactMatch ? (
-                              <p className="text-green-600">
-                                ✓ Exact match: {formData.customerMatchInfo.customerName}
-                                {formData.customerMatchInfo.customerCity && ` (${formData.customerMatchInfo.customerCity})`}
-                              </p>
-                            ) : formData.customerMatchInfo.matchType === 'substring' || formData.customerMatchInfo.matchType === 'normalized_substring' ? (
-                              <p className="text-blue-600">
-                                🎯 Smart match (substring): {formData.customerMatchInfo.customerName}
-                                {formData.customerMatchInfo.customerCity && ` (${formData.customerMatchInfo.customerCity})`}
-                              </p>
-                            ) : formData.customerMatchInfo.matchType === 'keyword' ? (
-                              <p className="text-purple-600">
-                                🔍 Keyword match: {formData.customerMatchInfo.customerName}
-                                {formData.customerMatchInfo.customerCity && ` (${formData.customerMatchInfo.customerCity})`}
-                              </p>
-                            ) : formData.customerMatchInfo.fuzzyMatch ? (
-                              <p className="text-blue-600">
-                                🎯 Smart match: {formData.customerMatchInfo.customerName}
-                                {formData.customerMatchInfo.customerCity && ` (${formData.customerMatchInfo.customerCity})`}
-                              </p>
-                            ) : (
-                              <div>
-                                <p className="text-yellow-600">
-                                  ⚠ Partial match: {formData.customerMatchInfo.customerName}
-                                  {formData.customerMatchInfo.customerCity && ` (${formData.customerMatchInfo.customerCity})`}
-                                </p>
-                                {formData.customerMatchInfo.alternativeMatches && 
-                                 formData.customerMatchInfo.alternativeMatches.length > 0 && (
-                                  <div className="mt-1">
-                                    <p className="text-gray-500">Other matches:</p>
-                                    {formData.customerMatchInfo.alternativeMatches.slice(0, 3).map((match: any, idx: number) => (
-                                      <p key={idx} className="text-gray-400 ml-2">
-                                        • {match.name} ({match.city || 'No city'})
-                                      </p>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <Label htmlFor="ShopNumber">ERP Query Number</Label>
+                    <Label htmlFor="ShopNumber" className="text-xs">ERP Query Number</Label>
                     <Input
                       id="ShopNumber"
                       value={formData.ShopNumber || ""}
                       onChange={(e) => handleInputChange('ShopNumber', e.target.value)}
                       placeholder="ERP Query Number"
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="CLIENT" className="text-xs">Wearer's Name</Label>
+                    <Input
+                      id="CLIENT"
+                      value={formData.CLIENT || ""}
+                      onChange={(e) => handleInputChange('CLIENT', e.target.value)}
+                      placeholder="Full name"
+                      className="h-8 text-sm"
                     />
                   </div>
                 </div>
+                
+                <div className="mt-3">
+                  <Label htmlFor="SHOPNUMBER" className="text-xs">Customer/Shop Name</Label>
+                  <Input
+                    id="SHOPNUMBER"
+                    value={formData.SHOPNUMBER || ""}
+                    onChange={(e) => handleInputChange('SHOPNUMBER', e.target.value)}
+                    placeholder="Customer or Shop Name"
+                    className="h-8 text-sm"
+                  />
+                  {formData.customerMatchInfo && (
+                    <p className="text-xs text-green-600 mt-1">
+                      ✓ Matched: {formData.customerMatchInfo.customerName}
+                    </p>
+                  )}
+                </div>
               </div>
 
-              <Separator />
-
               {/* Prescription Data */}
-              <div>
-                <h3 className="text-lg font-semibold mb-3">Prescription Data</h3>
-                
-                {/* Prescription Table Layout */}
-                <div className="bg-gray-50 rounded-lg p-4 mb-4">
+              <div className="lg:col-span-2">
+                <h3 className="text-base font-semibold mb-2">Prescription</h3>
+                <div className="bg-gray-50 rounded-lg p-3">
                   {/* Header Row */}
-                  <div className="grid grid-cols-5 gap-2 mb-3">
-                    <div className="text-sm font-medium text-gray-700 text-center">Eye</div>
-                    <div className="text-sm font-medium text-gray-700 text-center">SPH</div>
-                    <div className="text-sm font-medium text-gray-700 text-center">CYL</div>
-                    <div className="text-sm font-medium text-gray-700 text-center">AXIS</div>
-                    <div className="text-sm font-medium text-gray-700 text-center">ADD</div>
+                  <div className="grid grid-cols-5 gap-2 mb-2">
+                    <div className="text-xs font-medium text-gray-700 text-center">Eye</div>
+                    <div className="text-xs font-medium text-gray-700 text-center">SPH</div>
+                    <div className="text-xs font-medium text-gray-700 text-center">CYL</div>
+                    <div className="text-xs font-medium text-gray-700 text-center">AXIS</div>
+                    <div className="text-xs font-medium text-gray-700 text-center">ADD</div>
                   </div>
                   
                   {/* Right Eye Row */}
                   <div className="grid grid-cols-5 gap-2 mb-2">
                     <div className="flex items-center justify-center">
-                      <Label className="text-sm font-medium text-gray-600">Right (OD)</Label>
+                      <Label className="text-xs font-medium text-gray-600">R</Label>
                     </div>
                     <div>
                       <Input
                         value={parseVCAValue(formData.SPH).right}
                         onChange={(e) => handleEyeFieldChange('SPH', 'right', e.target.value)}
                         placeholder="-1.75"
-                        className="h-8 text-center text-sm"
+                        className="h-7 text-center text-xs"
                       />
                     </div>
                     <div>
@@ -452,7 +560,7 @@ export default function ImageExtractorForm({
                         value={parseVCAValue(formData.CYL).right}
                         onChange={(e) => handleEyeFieldChange('CYL', 'right', e.target.value)}
                         placeholder="-0.5"
-                        className="h-8 text-center text-sm"
+                        className="h-7 text-center text-xs"
                       />
                     </div>
                     <div>
@@ -460,7 +568,7 @@ export default function ImageExtractorForm({
                         value={parseVCAValue(formData.AX).right}
                         onChange={(e) => handleEyeFieldChange('AX', 'right', e.target.value)}
                         placeholder="45"
-                        className="h-8 text-center text-sm"
+                        className="h-7 text-center text-xs"
                       />
                     </div>
                     <div>
@@ -468,7 +576,7 @@ export default function ImageExtractorForm({
                         value={parseVCAValue(formData.ADD).right}
                         onChange={(e) => handleEyeFieldChange('ADD', 'right', e.target.value)}
                         placeholder="1.75"
-                        className="h-8 text-center text-sm"
+                        className="h-7 text-center text-xs"
                       />
                     </div>
                   </div>
@@ -476,14 +584,14 @@ export default function ImageExtractorForm({
                   {/* Left Eye Row */}
                   <div className="grid grid-cols-5 gap-2">
                     <div className="flex items-center justify-center">
-                      <Label className="text-sm font-medium text-gray-600">Left (OS)</Label>
+                      <Label className="text-xs font-medium text-gray-600">L</Label>
                     </div>
                     <div>
                       <Input
                         value={parseVCAValue(formData.SPH).left}
                         onChange={(e) => handleEyeFieldChange('SPH', 'left', e.target.value)}
                         placeholder="-1.75"
-                        className="h-8 text-center text-sm"
+                        className="h-7 text-center text-xs"
                       />
                     </div>
                     <div>
@@ -491,7 +599,7 @@ export default function ImageExtractorForm({
                         value={parseVCAValue(formData.CYL).left}
                         onChange={(e) => handleEyeFieldChange('CYL', 'left', e.target.value)}
                         placeholder="-0.25"
-                        className="h-8 text-center text-sm"
+                        className="h-7 text-center text-xs"
                       />
                     </div>
                     <div>
@@ -499,7 +607,7 @@ export default function ImageExtractorForm({
                         value={parseVCAValue(formData.AX).left}
                         onChange={(e) => handleEyeFieldChange('AX', 'left', e.target.value)}
                         placeholder="180"
-                        className="h-8 text-center text-sm"
+                        className="h-7 text-center text-xs"
                       />
                     </div>
                     <div>
@@ -507,600 +615,263 @@ export default function ImageExtractorForm({
                         value={parseVCAValue(formData.ADD).left}
                         onChange={(e) => handleEyeFieldChange('ADD', 'left', e.target.value)}
                         placeholder="1.75"
-                        className="h-8 text-center text-sm"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Prism Parameters Table */}
-                <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                  <div className="grid grid-cols-5 gap-2 mb-3">
-                    <div className="text-sm font-medium text-gray-700 text-center">Eye</div>
-                    <div className="text-sm font-medium text-gray-700 text-center">Prism</div>
-                    <div className="text-sm font-medium text-gray-700 text-center">Base Dir.</div>
-                    <div className="text-sm font-medium text-gray-700 text-center">Horiz. Dir.</div>
-                    <div className="text-sm font-medium text-gray-700 text-center">Vert. Dir.</div>
-                  </div>
-                  
-                  {/* Right Eye Row */}
-                  <div className="grid grid-cols-5 gap-2 mb-2">
-                    <div className="flex items-center justify-center">
-                      <Label className="text-sm font-medium text-gray-600">Right (OD)</Label>
-                    </div>
-                    <div>
-                      <Input
-                        value={parseVCAValue(formData.PRVM).right}
-                        onChange={(e) => handleEyeFieldChange('PRVM', 'right', e.target.value)}
-                        placeholder="0"
-                        className="h-8 text-center text-sm"
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        value={parseVCAValue(formData.PRVA).right}
-                        onChange={(e) => handleEyeFieldChange('PRVA', 'right', e.target.value)}
-                        placeholder="0"
-                        className="h-8 text-center text-sm"
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        value={parseVCAValue(formData.PRVIN).right}
-                        onChange={(e) => handleEyeFieldChange('PRVIN', 'right', e.target.value)}
-                        placeholder="3"
-                        className="h-8 text-center text-sm"
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        value={parseVCAValue(formData.PRVUP).right}
-                        onChange={(e) => handleEyeFieldChange('PRVUP', 'right', e.target.value)}
-                        placeholder="1.5"
-                        className="h-8 text-center text-sm"
-                      />
-                    </div>
-                  </div>
-                  
-                  {/* Left Eye Row */}
-                  <div className="grid grid-cols-5 gap-2">
-                    <div className="flex items-center justify-center">
-                      <Label className="text-sm font-medium text-gray-600">Left (OS)</Label>
-                    </div>
-                    <div>
-                      <Input
-                        value={parseVCAValue(formData.PRVM).left}
-                        onChange={(e) => handleEyeFieldChange('PRVM', 'left', e.target.value)}
-                        placeholder="0"
-                        className="h-8 text-center text-sm"
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        value={parseVCAValue(formData.PRVA).left}
-                        onChange={(e) => handleEyeFieldChange('PRVA', 'left', e.target.value)}
-                        placeholder="0"
-                        className="h-8 text-center text-sm"
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        value={parseVCAValue(formData.PRVIN).left}
-                        onChange={(e) => handleEyeFieldChange('PRVIN', 'left', e.target.value)}
-                        placeholder="2"
-                        className="h-8 text-center text-sm"
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        value={parseVCAValue(formData.PRVUP).left}
-                        onChange={(e) => handleEyeFieldChange('PRVUP', 'left', e.target.value)}
-                        placeholder="1"
-                        className="h-8 text-center text-sm"
+                        className="h-7 text-center text-xs"
                       />
                     </div>
                   </div>
                 </div>
               </div>
 
-              <Separator />
-
               {/* Frame & Measurements */}
-              <div>
-                <h3 className="text-lg font-semibold mb-3">Frame & Measurements</h3>
-                
-                {/* IPD Far & Near PD Table */}
-                <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                  <div className="grid grid-cols-3 gap-2 mb-3">
-                    <div className="text-sm font-medium text-gray-700 text-center">Eye</div>
-                    <div className="text-sm font-medium text-gray-700 text-center">IPD Far</div>
-                    <div className="text-sm font-medium text-gray-700 text-center">Near PD</div>
+              <div className="lg:col-span-2">
+                <h3 className="text-base font-semibold mb-2">Frame & Measurements</h3>
+                <div className="bg-gray-50 rounded-lg p-3">
+                  {/* Header Row */}
+                  <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: '1fr 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr' }}>
+                    <div className="text-xs font-medium text-gray-700 text-center">Eye</div>
+                    <div className="text-xs font-medium text-gray-700 text-center">Lens Code</div>
+                    <div className="text-xs font-medium text-gray-700 text-center">PD</div>
+                    <div className="text-xs font-medium text-gray-700 text-center">NPD</div>
+                    <div className="text-xs font-medium text-gray-700 text-center">HT</div>
+                    <div className="text-xs font-medium text-gray-700 text-center">[A]</div>
+                    <div className="text-xs font-medium text-gray-700 text-center">[B]</div>
+                    <div className="text-xs font-medium text-gray-700 text-center">DBL</div>
+                    <div className="text-xs font-medium text-gray-700 text-center">ED</div>
                   </div>
                   
                   {/* Right Eye Row */}
-                  <div className="grid grid-cols-3 gap-2 mb-2">
+                  <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: '1fr 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr' }}>
                     <div className="flex items-center justify-center">
-                      <Label className="text-sm font-medium text-gray-600">Right (OD)</Label>
+                      <Label className="text-xs font-medium text-gray-600">R</Label>
+                    </div>
+                    <div>
+                      <Input
+                        value={parseVCAValue(formData.LNAM).right}
+                        onChange={(e) => handleEyeFieldChange('LNAM', 'right', e.target.value)}
+                        placeholder="OVMDXV"
+                        className="h-7 text-center text-xs"
+                      />
                     </div>
                     <div>
                       <Input
                         value={parseVCAValue(formData.IPD).right}
                         onChange={(e) => handleEyeFieldChange('IPD', 'right', e.target.value)}
-                        placeholder="30.5"
-                        className="h-8 text-center text-sm"
+                        placeholder="28.5"
+                        className="h-6 text-center text-xs"
                       />
                     </div>
                     <div>
                       <Input
                         value={parseVCAValue(formData.NPD).right}
                         onChange={(e) => handleEyeFieldChange('NPD', 'right', e.target.value)}
-                        placeholder="28.57"
-                        className="h-8 text-center text-sm"
-                      />
-                    </div>
-                  </div>
-                  
-                  {/* Left Eye Row */}
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="flex items-center justify-center">
-                      <Label className="text-sm font-medium text-gray-600">Left (OS)</Label>
-                    </div>
-                    <div>
-                      <Input
-                        value={parseVCAValue(formData.IPD).left}
-                        onChange={(e) => handleEyeFieldChange('IPD', 'left', e.target.value)}
-                        placeholder="30.5"
-                        className="h-8 text-center text-sm"
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        value={parseVCAValue(formData.NPD).left}
-                        onChange={(e) => handleEyeFieldChange('NPD', 'left', e.target.value)}
-                        placeholder="28.57"
-                        className="h-8 text-center text-sm"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Frame Dimensions Table */}
-                <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                  <div className="grid grid-cols-4 gap-2 mb-3">
-                    <div className="text-sm font-medium text-gray-700 text-center">Eye</div>
-                    <div className="text-sm font-medium text-gray-700 text-center">Width</div>
-                    <div className="text-sm font-medium text-gray-700 text-center">Height</div>
-                    <div className="text-sm font-medium text-gray-700 text-center">Eff. Diameter</div>
-                  </div>
-                  
-                  {/* Right Eye Row */}
-                  <div className="grid grid-cols-4 gap-2 mb-2">
-                    <div className="flex items-center justify-center">
-                      <Label className="text-sm font-medium text-gray-600">Right (OD)</Label>
-                    </div>
-                    <div>
-                      <Input
-                        value={parseVCAValue(formData.HBOX).right}
-                        onChange={(e) => handleEyeFieldChange('HBOX', 'right', e.target.value)}
-                        placeholder="44.95"
-                        className="h-8 text-center text-sm"
+                        placeholder=""
+                        className="h-6 text-center text-xs"
                       />
                     </div>
                     <div>
                       <Input
                         value={parseVCAValue(formData.VBOX).right}
                         onChange={(e) => handleEyeFieldChange('VBOX', 'right', e.target.value)}
-                        placeholder="39.96"
-                        className="h-8 text-center text-sm"
+                        placeholder="29"
+                        className="h-6 text-center text-xs"
+                      />
+                    </div>
+                    <div>
+                      <Input
+                        value={parseVCAValue(formData.HBOX).right}
+                        onChange={(e) => handleEyeFieldChange('HBOX', 'right', e.target.value)}
+                        placeholder="50.69"
+                        className="h-6 text-center text-xs"
+                      />
+                    </div>
+                    <div>
+                      <Input
+                        value={parseVCAValue(formData.SEGHT).right}
+                        onChange={(e) => handleEyeFieldChange('SEGHT', 'right', e.target.value)}
+                        placeholder="44.83"
+                        className="h-6 text-center text-xs"
+                      />
+                    </div>
+                    <div>
+                      <Input
+                        value={formData.DBL || ""}
+                        onChange={(e) => handleInputChange('DBL', e.target.value)}
+                        placeholder="17.74"
+                        className="h-6 text-center text-xs"
                       />
                     </div>
                     <div>
                       <Input
                         value={parseVCAValue(formData.FED).right}
                         onChange={(e) => handleEyeFieldChange('FED', 'right', e.target.value)}
-                        placeholder="49.84"
-                        className="h-8 text-center text-sm"
+                        placeholder="54.7"
+                        className="h-6 text-center text-xs"
                       />
                     </div>
                   </div>
                   
                   {/* Left Eye Row */}
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid gap-2" style={{ gridTemplateColumns: '1fr 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr' }}>
                     <div className="flex items-center justify-center">
-                      <Label className="text-sm font-medium text-gray-600">Left (OS)</Label>
+                      <Label className="text-xs font-medium text-gray-600">L</Label>
                     </div>
                     <div>
                       <Input
-                        value={parseVCAValue(formData.HBOX).left}
-                        onChange={(e) => handleEyeFieldChange('HBOX', 'left', e.target.value)}
-                        placeholder="44.97"
-                        className="h-8 text-center text-sm"
+                        value={parseVCAValue(formData.LNAM).left}
+                        onChange={(e) => handleEyeFieldChange('LNAM', 'left', e.target.value)}
+                        placeholder="OVMDXV"
+                        className="h-7 text-center text-xs"
+                      />
+                    </div>
+                    <div>
+                      <Input
+                        value={parseVCAValue(formData.IPD).left}
+                        onChange={(e) => handleEyeFieldChange('IPD', 'left', e.target.value)}
+                        placeholder="28.5"
+                        className="h-6 text-center text-xs"
+                      />
+                    </div>
+                    <div>
+                      <Input
+                        value={parseVCAValue(formData.NPD).left}
+                        onChange={(e) => handleEyeFieldChange('NPD', 'left', e.target.value)}
+                        placeholder=""
+                        className="h-6 text-center text-xs"
                       />
                     </div>
                     <div>
                       <Input
                         value={parseVCAValue(formData.VBOX).left}
                         onChange={(e) => handleEyeFieldChange('VBOX', 'left', e.target.value)}
-                        placeholder="40.01"
-                        className="h-8 text-center text-sm"
+                        placeholder="29"
+                        className="h-6 text-center text-xs"
+                      />
+                    </div>
+                    <div>
+                      <Input
+                        value={parseVCAValue(formData.HBOX).left}
+                        onChange={(e) => handleEyeFieldChange('HBOX', 'left', e.target.value)}
+                        placeholder="50.69"
+                        className="h-6 text-center text-xs"
+                      />
+                    </div>
+                    <div>
+                      <Input
+                        value={parseVCAValue(formData.SEGHT).left}
+                        onChange={(e) => handleEyeFieldChange('SEGHT', 'left', e.target.value)}
+                        placeholder="44.83"
+                        className="h-6 text-center text-xs"
+                      />
+                    </div>
+                    <div>
+                      {/* DBL is shared, so disable for left eye */}
+                      <Input
+                        value=""
+                        disabled
+                        className="h-6 text-center text-xs bg-gray-100"
                       />
                     </div>
                     <div>
                       <Input
                         value={parseVCAValue(formData.FED).left}
                         onChange={(e) => handleEyeFieldChange('FED', 'left', e.target.value)}
-                        placeholder="49.92"
-                        className="h-8 text-center text-sm"
+                        placeholder="54.7"
+                        className="h-6 text-center text-xs"
                       />
                     </div>
                   </div>
                 </div>
-
-                {/* Bridge Width - Single field since it's the same for both eyes */}
-                <div className="mb-4">
-                  <Label htmlFor="DBL" className="text-sm font-medium text-gray-700">Bridge Width</Label>
-                  <Input
-                    id="DBL"
-                    value={formData.DBL || ""}
-                    onChange={(e) => handleInputChange('DBL', e.target.value)}
-                    placeholder="e.g., 20"
-                    className="h-8 text-sm mt-1"
-                  />
-                </div>
-
-                {/* Segment Height & Back Vertex Distance Table */}
-                <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                  <div className="grid grid-cols-3 gap-2 mb-3">
-                    <div className="text-sm font-medium text-gray-700 text-center">Eye</div>
-                    <div className="text-sm font-medium text-gray-700 text-center">Seg. Height</div>
-                    <div className="text-sm font-medium text-gray-700 text-center">BVD</div>
-                  </div>
-                  
-                  {/* Right Eye Row */}
-                  <div className="grid grid-cols-3 gap-2 mb-2">
-                    <div className="flex items-center justify-center">
-                      <Label className="text-sm font-medium text-gray-600">Right (OD)</Label>
-                    </div>
-                    <div>
-                      <Input
-                        value={parseVCAValue(formData.SEGHT).right}
-                        onChange={(e) => handleEyeFieldChange('SEGHT', 'right', e.target.value)}
-                        placeholder="28.04"
-                        className="h-8 text-center text-sm"
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        value={parseVCAValue(formData.BVD).right}
-                        onChange={(e) => handleEyeFieldChange('BVD', 'right', e.target.value)}
-                        placeholder="13"
-                        className="h-8 text-center text-sm"
-                      />
-                    </div>
-                  </div>
-                  
-                  {/* Left Eye Row */}
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="flex items-center justify-center">
-                      <Label className="text-sm font-medium text-gray-600">Left (OS)</Label>
-                    </div>
-                    <div>
-                      <Input
-                        value={parseVCAValue(formData.SEGHT).left}
-                        onChange={(e) => handleEyeFieldChange('SEGHT', 'left', e.target.value)}
-                        placeholder="28.02"
-                        className="h-8 text-center text-sm"
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        value={parseVCAValue(formData.BVD).left}
-                        onChange={(e) => handleEyeFieldChange('BVD', 'left', e.target.value)}
-                        placeholder="13"
-                        className="h-8 text-center text-sm"
-                      />
-                    </div>
-                  </div>
-                </div>
+                {formData.lensCodeMatchInfo && (
+                  <p className="text-xs text-green-600 mt-2">
+                    ✓ Lens Code Matched: {formData.lensCodeMatchInfo.lensCode.retail_name} (synced to both eyes)
+                  </p>
+                )}
               </div>
-
-              <Separator />
 
               {/* Lens & Coating Options */}
-              <div>
-                <h3 className="text-lg font-semibold mb-3">Lens & Coating Options</h3>
-                
-                {/* Lens Code - Single field */}
-                <div className="mb-4">
-                  <Label htmlFor="LNAM">Lens Code</Label>
-                  <Input
-                    id="LNAM"
-                    value={formData.LNAM || ""}
-                    onChange={(e) => handleInputChange('LNAM', e.target.value)}
-                    placeholder="e.g., OVMDXV"
-                  />
-                  <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                      Auto-matched if at least partially matches database name (e.g., "SV_POLY")
-                  </p>
-                  {formData.originalLensCode && (
-                    <div className="mt-1 space-y-1">
-                      <p className="text-xs text-gray-500">
-                        Original: {formData.originalLensCode}
+              <div className="lg:col-span-2">
+                <h3 className="text-base font-semibold mb-2">Coating Options</h3>
+                <div className="grid grid-cols-3 gap-3 mb-3">
+                <div>
+                    <Label htmlFor="ACOAT" className="text-xs">Coating Code</Label>
+                    <Input
+                      id="ACOAT"
+                      value={formData.ACOAT || ""}
+                      onChange={(e) => handleInputChange('ACOAT', e.target.value)}
+                      placeholder="PT GREEN"
+                      className="h-8 text-sm"
+                    />
+                    {formData.coatingCodeMatchInfo && (
+                      <p className="text-xs text-green-600 mt-1">
+                        ✓ {formData.coatingCodeMatchInfo.coatingCode.retail_name || formData.coatingCodeMatchInfo.coatingCode.name || 'Matched'}
                       </p>
-                      {formData.lensCodeMatchInfo && (
-                        <div className="text-xs">
-                          {formData.lensCodeMatchInfo.exactMatch ? (
-                            <p className="text-green-600">
-                              ✓ Exact match: {formData.lensCodeMatchInfo.lensCode.retail_name || formData.lensCodeMatchInfo.lensCode.retail_code}
-                              <span className="text-gray-500 ml-1">({formData.lensCodeMatchInfo.lensCode.source})</span>
-                            </p>
-                          ) : (
-                            <div>
-                              <p className="text-yellow-600">
-                                ⚠ Partial match: {formData.lensCodeMatchInfo.lensCode.retail_name || formData.lensCodeMatchInfo.lensCode.retail_code}
-                                <span className="text-gray-500 ml-1">({formData.lensCodeMatchInfo.lensCode.source})</span>
-                              </p>
-                              {formData.lensCodeMatchInfo.alternativeMatches && 
-                               formData.lensCodeMatchInfo.alternativeMatches.length > 0 && (
-                                <div className="mt-1">
-                                  <p className="text-gray-500">Other matches:</p>
-                                  {formData.lensCodeMatchInfo.alternativeMatches.slice(0, 3).map((match: any, idx: number) => (
-                                    <p key={idx} className="text-gray-400 ml-2">
-                                      • {match.retail_name || match.retail_code} ({match.source})
-                                    </p>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
+                    )}
+                  </div>
+                  <div>
+                    <Label htmlFor="TINT" className="text-xs">Tint Code</Label>
+                    <Input
+                      id="TINT"
+                      value={formData.TINT || ""}
+                      onChange={(e) => handleInputChange('TINT', e.target.value)}
+                      placeholder="Tint"
+                      className="h-8 text-sm"
+                    />
+                    {formData.tintCodeMatchInfo && (
+                      <p className="text-xs text-green-600 mt-1">
+                        ✓ {formData.tintCodeMatchInfo.tintCode.retail_name || formData.tintCodeMatchInfo.tintCode.name || 'Matched'}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <Label htmlFor="COLOR" className="text-xs">Color Code</Label>
+                    <Input
+                      id="COLOR"
+                      value={formData.COLOR || ""}
+                      onChange={(e) => handleInputChange('COLOR', e.target.value)}
+                      placeholder="Color"
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                 
                 </div>
-
-                {/* Product Name - Single field */}
-                <div className="mb-4">
-                  <Label htmlFor="CustomerRetailName">Product Name</Label>
-                  <Input
-                    id="CustomerRetailName"
-                    value={formData.CustomerRetailName || ""}
-                    onChange={(e) => handleInputChange('CustomerRetailName', e.target.value)}
-                    placeholder="Terminal Sales Product Name"
-                  />
-                </div>
-
-                {/* Tint Code - Single field */}
-                <div className="mb-4">
-                  <Label htmlFor="TINT">Tint Code</Label>
-                  <Input
-                    id="TINT"
-                    value={formData.TINT || ""}
-                    onChange={(e) => handleInputChange('TINT', e.target.value)}
-                    placeholder="Tint code"
-                  />
-                </div>
-
-                {/* Coating Code - Single field */}
-                <div className="mb-4">
-                  <Label htmlFor="ACOAT">Coating Code</Label>
-                  <Input
-                    id="ACOAT"
-                    value={formData.ACOAT || ""}
-                    onChange={(e) => handleInputChange('ACOAT', e.target.value)}
-                    placeholder="e.g., PT GREEN"
-                  />
-                </div>
-
-                {/* Color Code - Single field */}
-                <div className="mb-4">
-                  <Label htmlFor="COLR">Color Code</Label>
-                  <Input
-                    id="COLR"
-                    value={formData.COLR || ""}
-                    onChange={(e) => handleInputChange('COLR', e.target.value)}
-                    placeholder="e.g., Gray"
-                  />
-                </div>
-
-                {/* Pantoscopic Tilt - Single field */}
-                <div className="mb-4">
-                  <Label htmlFor="PANTO">Pantoscopic Tilt</Label>
-                  <Input
-                    id="PANTO"
-                    value={formData.PANTO || ""}
-                    onChange={(e) => handleInputChange('PANTO', e.target.value)}
-                    placeholder="Pantoscopic tilt"
-                  />
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Advanced Technical Parameters */}
-              <div>
-                <h3 className="text-lg font-semibold mb-3">Advanced Technical Parameters</h3>
                 
-                {/* Single Field Parameters */}
-                <div className="grid grid-cols-2 gap-4 mb-4">
+                {/* Face Form Tilt and Base Curve */}
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label htmlFor="CRIB" className="text-sm font-medium text-gray-700">Diameter 1</Label>
-                    <Input
-                      id="CRIB"
-                      value={formData.CRIB || ""}
-                      onChange={(e) => handleInputChange('CRIB', e.target.value)}
-                      placeholder="70"
-                      className="h-8 text-sm mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="ELLH" className="text-sm font-medium text-gray-700">Diameter 2</Label>
-                    <Input
-                      id="ELLH"
-                      value={formData.ELLH || ""}
-                      onChange={(e) => handleInputChange('ELLH', e.target.value)}
-                      placeholder="70"
-                      className="h-8 text-sm mt-1"
-                    />
-                  </div>
-                </div>
-
-                {/* Thickness Parameters Table */}
-                <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                  <div className="grid grid-cols-3 gap-2 mb-3">
-                    <div className="text-sm font-medium text-gray-700 text-center">Eye</div>
-                    <div className="text-sm font-medium text-gray-700 text-center">Min Edge/Center</div>
-                    <div className="text-sm font-medium text-gray-700 text-center">Min Center</div>
-                  </div>
-                  
-                  {/* Right Eye Row */}
-                  <div className="grid grid-cols-3 gap-2 mb-2">
-                    <div className="flex items-center justify-center">
-                      <Label className="text-sm font-medium text-gray-600">Right (OD)</Label>
-                    </div>
-                    <div>
-                      <Input
-                        value={parseVCAValue(formData.MINTHKCD).right}
-                        onChange={(e) => handleEyeFieldChange('MINTHKCD', 'right', e.target.value)}
-                        placeholder="0.51"
-                        className="h-8 text-center text-sm"
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        value={parseVCAValue(formData.MINCTR).right}
-                        onChange={(e) => handleEyeFieldChange('MINCTR', 'right', e.target.value)}
-                        placeholder="1.64"
-                        className="h-8 text-center text-sm"
-                      />
-                    </div>
-                  </div>
-                  
-                  {/* Left Eye Row */}
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="flex items-center justify-center">
-                      <Label className="text-sm font-medium text-gray-600">Left (OS)</Label>
-                    </div>
-                    <div>
-                      <Input
-                        value={parseVCAValue(formData.MINTHKCD).left}
-                        onChange={(e) => handleEyeFieldChange('MINTHKCD', 'left', e.target.value)}
-                        placeholder="0.51"
-                        className="h-8 text-center text-sm"
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        value={parseVCAValue(formData.MINCTR).left}
-                        onChange={(e) => handleEyeFieldChange('MINCTR', 'left', e.target.value)}
-                        placeholder="1.64"
-                        className="h-8 text-center text-sm"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Decentration Parameters Table */}
-                <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                  <div className="grid grid-cols-3 gap-2 mb-3">
-                    <div className="text-sm font-medium text-gray-700 text-center">Eye</div>
-                    <div className="text-sm font-medium text-gray-700 text-center">Horizontal Dec.</div>
-                    <div className="text-sm font-medium text-gray-700 text-center">Vertical Dec.</div>
-                  </div>
-                  
-                  {/* Right Eye Row */}
-                  <div className="grid grid-cols-3 gap-2 mb-2">
-                    <div className="flex items-center justify-center">
-                      <Label className="text-sm font-medium text-gray-600">Right (OD)</Label>
-                    </div>
-                    <div>
-                      <Input
-                        value={parseVCAValue(formData.BCERIN).right}
-                        onChange={(e) => handleEyeFieldChange('BCERIN', 'right', e.target.value)}
-                        placeholder="0"
-                        className="h-8 text-center text-sm"
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        value={parseVCAValue(formData.BCERUP).right}
-                        onChange={(e) => handleEyeFieldChange('BCERUP', 'right', e.target.value)}
-                        placeholder="0"
-                        className="h-8 text-center text-sm"
-                      />
-                    </div>
-                  </div>
-                  
-                  {/* Left Eye Row */}
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="flex items-center justify-center">
-                      <Label className="text-sm font-medium text-gray-600">Left (OS)</Label>
-                    </div>
-                    <div>
-                      <Input
-                        value={parseVCAValue(formData.BCERIN).left}
-                        onChange={(e) => handleEyeFieldChange('BCERIN', 'left', e.target.value)}
-                        placeholder="0"
-                        className="h-8 text-center text-sm"
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        value={parseVCAValue(formData.BCERUP).left}
-                        onChange={(e) => handleEyeFieldChange('BCERUP', 'left', e.target.value)}
-                        placeholder="0"
-                        className="h-8 text-center text-sm"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Single Field Parameters */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="ZTILT" className="text-sm font-medium text-gray-700">Face Form Tilt</Label>
+                    <Label htmlFor="ZTILT" className="text-xs">Face Form Tilt</Label>
                     <Input
                       id="ZTILT"
                       value={formData.ZTILT || ""}
                       onChange={(e) => handleInputChange('ZTILT', e.target.value)}
-                      placeholder="Lens surface curve"
-                      className="h-8 text-sm mt-1"
+                      placeholder="R;L format"
+                      className="h-8 text-sm"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="MBASE" className="text-sm font-medium text-gray-700">Marked Base Curve</Label>
+                    <Label htmlFor="MBASE" className="text-xs">Base Curve</Label>
                     <Input
                       id="MBASE"
                       value={formData.MBASE || ""}
                       onChange={(e) => handleInputChange('MBASE', e.target.value)}
-                      placeholder="Base curve"
-                      className="h-8 text-sm mt-1"
+                      placeholder="R;L format"
+                      className="h-8 text-sm"
                     />
                   </div>
                 </div>
               </div>
             </div>
-          </ScrollArea>
+          </div>
 
           {error && (
-            <Alert className="mt-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
+            <div className="flex-shrink-0 mx-4 mb-4">
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-sm">{error}</AlertDescription>
+              </Alert>
+            </div>
           )}
-
-          <div className="flex gap-2 pt-4 border-t">
-            <Button 
-              type="submit" 
-              disabled={isLoading}
-              className="flex-1"
-            >
-              {isLoading ? "Submitting..." : "Submit Order"}
-            </Button>
-          </div>
         </form>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 } 

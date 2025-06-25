@@ -213,7 +213,8 @@ export default function Home() {
       y: y - 75
     })
     
-    // Calculate background position for zoomed image (inverted for proper zoom effect)
+    // Calculate background position for zoomed image
+    // For true 4x zoom, we need to offset the background position more precisely
     setZoomBackgroundPosition({
       x: xPercent,
       y: yPercent
@@ -423,10 +424,10 @@ export default function Home() {
                             
                             {/* Zoomed image display */}
                             <div 
-                              className="absolute top-4 right-4 w-40 h-40 border-2 border-gray-300 bg-white rounded-lg shadow-lg overflow-hidden pointer-events-none"
+                              className="absolute top-4 right-4 w-80 h-80 border-2 border-gray-300 bg-white rounded-lg shadow-lg overflow-hidden pointer-events-none"
                               style={{
                                 backgroundImage: `url(${imagePreview})`,
-                                backgroundSize: '400% 400%',
+                                backgroundSize: '800% 800%',
                                 backgroundPosition: `${zoomBackgroundPosition.x}% ${zoomBackgroundPosition.y}%`,
                                 backgroundRepeat: 'no-repeat'
                               }}

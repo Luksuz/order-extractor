@@ -186,10 +186,33 @@ export default function ImageExtractorForm({
   }, [])
 
   useEffect(() => {
+    // Load cached credentials first
+    const cachedCredentials = localStorage.getItem('rxoffice_credentials')
+    let credentialsFromCache = {}
+    
+    if (cachedCredentials) {
+      try {
+        const credentials = JSON.parse(cachedCredentials)
+        credentialsFromCache = {
+          rxoffice_username: credentials.userName,
+          rxoffice_password: credentials.password
+        }
+      } catch (error) {
+        console.warn('Failed to parse cached credentials:', error)
+      }
+    }
+
     if (orderData) {
       setFormData((prevData: any) => ({
         ...prevData, // Keep defaults
-        ...orderData // Override with extracted data
+        ...credentialsFromCache, // Apply cached credentials
+        ...orderData // Override with extracted data (but not credentials if they exist in cache)
+      }))
+    } else if (Object.keys(credentialsFromCache).length > 0) {
+      // Apply cached credentials even if no orderData
+      setFormData((prevData: any) => ({
+        ...prevData,
+        ...credentialsFromCache
       }))
     }
   }, [orderData])
@@ -417,10 +440,6 @@ export default function ImageExtractorForm({
 
   return (
     <div className="h-full flex flex-col bg-white">
-      <div className="flex-shrink-0 p-4 border-b border-gray-200">
-        <h2 className="text-xl font-bold text-gray-900">Extracted Order Data</h2>
-        <p className="text-sm text-gray-600">Review and edit the extracted prescription data before submitting</p>
-      </div>
       
       <div className="flex-1 min-h-0">
         <form onSubmit={handleSubmit} className="h-full flex flex-col">

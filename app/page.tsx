@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Upload, X, FileImage, CheckCircle, Clock, ArrowLeft } from "lucide-react"
 import { Card } from "@/components/ui/card"
@@ -22,6 +22,23 @@ export default function Home() {
   const [isZooming, setIsZooming] = useState(false)
   const [zoomPosition, setZoomPosition] = useState({ x: 0, y: 0 })
   const [zoomBackgroundPosition, setZoomBackgroundPosition] = useState({ x: 0, y: 0 })
+
+  // Load cached credentials on component mount
+  useEffect(() => {
+    const cachedCredentials = localStorage.getItem('rxoffice_credentials')
+    if (cachedCredentials && extractedOrder) {
+      try {
+        const credentials = JSON.parse(cachedCredentials)
+        setExtractedOrder((prev: any) => ({
+          ...prev,
+          rxoffice_username: credentials.userName || prev?.rxoffice_username,
+          rxoffice_password: credentials.password || prev?.rxoffice_password
+        }))
+      } catch (error) {
+        console.warn('Failed to parse cached credentials:', error)
+      }
+    }
+  }, [extractedOrder])
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
@@ -128,6 +145,15 @@ export default function Home() {
     setIsLoading(true)
     setError(null)
 
+    // Cache credentials in localStorage immediately when user submits (regardless of success/failure)
+    if (orderData.rxoffice_username && orderData.rxoffice_password) {
+      const credentialsToCache = {
+        userName: orderData.rxoffice_username,
+        password: orderData.rxoffice_password
+      }
+      localStorage.setItem('rxoffice_credentials', JSON.stringify(credentialsToCache))
+    }
+
     try {
       const response = await fetch("/api/create-order-soap", {
         method: "POST",
@@ -226,16 +252,15 @@ export default function Home() {
       {/* Navigation Bar */}
       <div className="flex-shrink-0 bg-white/90 backdrop-blur-sm border-b border-gray-200 shadow-sm">
         <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
-                <FileImage className="h-5 w-5 text-white" />
-              </div>
-              <h1 className="text-xl font-bold text-gray-900">
-                WhatsApp Order Extractor
-              </h1>
+          <div className="flex items-center justify-between h-full">
+            <div className="flex items-stretch gap-3 h-full">
+              <img 
+                src="/public.png" 
+                alt="Logo" 
+                className="h-full w-auto object-contain"
+                style={{ maxHeight: "56px" }} // 56px = py-4 (16px*2) + 14px (w-14/h-14) fallback
+              />
             </div>
-            
             {appState === 'form' && (
               <Button
                 variant="outline"
@@ -385,14 +410,7 @@ export default function Home() {
             {/* Left Side - Image Preview with Zoom */}
             <div className="w-1/3 flex-shrink-0 bg-white/50 backdrop-blur-sm border-r border-gray-200">
               <div className="h-full flex flex-col">
-                <div className="flex-shrink-0 p-4 border-b border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                    <FileImage className="h-5 w-5 text-blue-600" />
-                    Source Image
-                  </h3>
-                  <p className="text-xs text-gray-500 mt-1">Hover over image to zoom</p>
-                </div>
-                
+              
                 <div className="flex-1 p-4 flex flex-col">
                   {imagePreview && (
                     <>

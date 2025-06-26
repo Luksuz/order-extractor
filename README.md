@@ -1,210 +1,399 @@
-# RxOffice EDI Interface - Next.js Application
+# WhatsApp Order Extractor - AI-Powered Prescription Processing
 
-A comprehensive prescription order processing system that integrates with RxOffice EDI services via SOAP. This application allows users to upload prescription images, extract order data using AI, and submit orders directly to RxOffice systems.
+A modern Next.js application that uses AI to extract prescription data from images and integrates with RxOffice EDI services via SOAP. Upload prescription images, let AI extract the data, review and edit the information, then submit orders directly to RxOffice systems.
 
-## 🌟 Features
+## 🌟 Key Features
 
-- **📸 Image Processing**: Upload prescription images (JPG, PNG, PDF)
-- **🤖 AI Data Extraction**: Automatic prescription data extraction using GPT-4 Vision
-- **📝 Editable Forms**: Comprehensive order form with all VCA fields
+- **🤖 AI-Powered Extraction**: Uses GPT-4 Vision to automatically extract prescription data from images
+- **📸 Multi-Format Support**: Supports JPG, PNG, and PDF prescription images
+- **🔍 Image Zoom**: 4x magnification zoom for detailed image inspection
+- **📝 Smart Forms**: Intelligent form with database matching for customers, lens codes, tints, and coatings
 - **🔗 SOAP Integration**: Real-time integration with RxOffice EDI services
-- **🔐 Custom Credentials**: User-configurable RxOffice authentication
-- **📊 VCA Format Support**: Full Vision Council of America format compliance
-- **🐛 Debug Tools**: Comprehensive debugging and logging interface
-- **⚡ Real-time Processing**: Instant order validation and submission
+- **📊 VCA Compliance**: Full Vision Council of America format support
+- **🎯 Modern UI**: Clean, responsive interface with drag-and-drop upload
 
 ## 🛠️ Prerequisites
 
-Before setting up the application, ensure you have:
-
-- **Node.js** (v18.0.0 or higher)
+- **Node.js** 18.0.0 or higher
 - **npm** or **yarn** package manager
 - **OpenAI API Key** (for GPT-4 Vision image processing)
-- **RxOffice EDI Account** (username and password)
-- **Git** (for cloning the repository)
+- **RxOffice EDI Credentials** (username and password)
 
-## 📦 Installation
+## 📦 Setup Instructions
 
-### 1. Clone the Repository
-
-```bash
-git clone <your-repository-url>
-cd whatsapp-order-extractor
-```
-
-### 2. Install Dependencies
+### 1. Clone and Install
 
 ```bash
-# Using npm
+# Clone the repository
+cd <project-name>
+
+# Install dependencies
 npm install
-
-# Using yarn
+# or
 yarn install
 ```
 
-### 3. Environment Configuration
+### 2. Environment Configuration
 
-Create a `.env.local` file in the root directory:
+Create a `.env` file in the root directory:
 
 ```bash
+# Copy the example environment file
 cp .env.example .env.local
 ```
 
-Add the following environment variables to `.env.local`:
+Add your configuration to `.env`:
 
 ```env
-# OpenAI Configuration
+# Required: OpenAI API Key for image processing
 OPENAI_API_KEY=your_openai_api_key_here
 
-# RxOffice EDI Configuration (Optional - can be set via UI)
-RXOFFICE_WSDL_URL=http://127.0.0.1:5000/CommonEDIService.svc?wsdl
-RXOFFICE_USERNAME=your_rxoffice_username
-RXOFFICE_PASSWORD=your_rxoffice_password
+# Optional: Default RxOffice credentials (can be set via UI)
+RXOFFICE_USERNAME=your_username
+RXOFFICE_PASSWORD=your_password
 
-# SOAP Service Configuration
+# Optional: SOAP service configuration
+RXOFFICE_WSDL_URL=http://localhost:5000/CommonEDIService.svc?wsdl
 USE_REAL_SOAP_SERVICE=true
 
-# Application Configuration
+# Optional: Application URL
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
+### 3. Database Setup (Optional, THIS IS ALREADY DONE)
+
+If using database matching features, ensure your database is configured with:
+- Customer database for smart customer matching
+- Lens code database for lens code validation
+- Tint and coating code databases
+
 ## 🚀 Running the Application
 
-### 1. Start the Next.js Development Server
+### Development Mode
 
 ```bash
-# Using npm
+# Start the development server
 npm run dev
-
-# Using yarn
+# or
 yarn dev
+
+# Application will be available at http://localhost:3000
 ```
 
-The application will be available at `http://localhost:3000`
-
-### 2. Start the RxOffice EDI SOAP Service (Required for real orders)
-
-In a separate terminal, start the local SOAP service:
+### Production Build
 
 ```bash
-cd rxoffice-edi-service
-./run.sh    # macOS/Linux
+# Build the application
+npm run build
 # or
-run.bat     # Windows
+yarn build
+
+# Start the production server
+npm start
+# or
+yarn start
 ```
 
-The SOAP service will be available at `http://localhost:5000`
+### Build Verification
 
-### 3. Verify Setup
+```bash
+# Check build output
+npm run build
 
-1. Open `http://localhost:3000` in your browser
-2. You should see the "RxOffice Image Extractor" interface
-3. Check that both services are running:
-   - Next.js app: `http://localhost:3000`
-   - SOAP service: `http://localhost:5000/health`
+# Test the production build locally
+npm start
 
-## 📋 Usage Guide
-
-### Step 1: Upload Prescription Image
-
-1. Click "Select Image" to upload a prescription image
-2. Supported formats: JPG, PNG, PDF
-3. Click "Extract Data" to process the image with AI
-
-### Step 2: Review Extracted Data
-
-1. Review the automatically extracted prescription data
-2. Edit any fields as needed
-3. Fill in required fields:
-   - **Order ID (JOB)**: Click "Generate" for auto-generated ID
-   - **Customer Name (CLIENT)**: Enter patient name
-   - **RxOffice Credentials**: Enter your username/password
-
-### Step 3: Submit Order
-
-1. Click "Submit Order" to send to RxOffice EDI
-2. Monitor the submission process in console logs
-3. View success confirmation and order details
-4. Use the Debug modal for detailed information
-
-## 🔧 Configuration Options
-
-### Environment Variables
-
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `OPENAI_API_KEY` | OpenAI API key for image processing | Yes | - |
-| `RXOFFICE_WSDL_URL` | RxOffice SOAP service URL | No | `http://127.0.0.1:5000/CommonEDIService.svc?wsdl` |
-| `RXOFFICE_USERNAME` | Default RxOffice username | No | `380` |
-| `RXOFFICE_PASSWORD` | Default RxOffice password | No | `ZOHO123` |
-| `USE_REAL_SOAP_SERVICE` | Enable real SOAP calls | No | `true` |
-
-### RxOffice EDI Service Configuration
-
-The local SOAP service can be configured in `rxoffice-edi-service/RxOfficeEDI/appsettings.json`:
-
-```json
-{
-  "RxOfficeSettings": {
-    "EnableVCAValidation": true,
-    "MaxOrdersPerRequest": 1000,
-    "DefaultOrderTimeout": 30
-  }
-}
+# Verify at http://localhost:3000
 ```
 
 ## 📡 API Endpoints
 
-### Next.js API Routes
+### 1. Extract Order Data from Image
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/extract-order` | POST | Extract order data from uploaded images |
-| `/api/create-order-soap` | POST | Submit orders to RxOffice EDI via SOAP |
-| `/api/create-order-soap` | GET | Test SOAP service connection |
+**Endpoint**: `POST /api/extract-order`
 
-### RxOffice SOAP Service
+**Description**: Processes uploaded prescription images using GPT-4 Vision to extract structured order data in VCA format.
 
-| Endpoint | Description |
-|----------|-------------|
-| `http://localhost:5000/CommonEDIService.svc` | Main SOAP endpoint |
-| `http://localhost:5000/CommonEDIService.svc?wsdl` | WSDL definition |
-| `http://localhost:5000/health` | Health check |
+**Parameters**:
+- `image` (File, required): Prescription image file (JPG, PNG, or PDF)
 
-## 🏗️ Project Structure
+**Request Example**:
+```javascript
+const formData = new FormData()
+formData.append('image', imageFile)
 
-```
-whatsapp-order-extractor/
-├── app/                          # Next.js app directory
-│   ├── api/                      # API routes
-│   │   ├── create-order-soap/    # SOAP integration
-│   │   └── extract-order/        # Image processing
-│   ├── globals.css               # Global styles
-│   ├── layout.tsx                # Root layout
-│   └── page.tsx                  # Main application page
-├── components/                   # React components
-│   ├── ui/                       # UI components (Shadcn)
-│   ├── image-extractor-form.tsx  # Main order form
-│   └── debug-modal.tsx           # Debug information modal
-├── lib/                          # Utility libraries
-│   ├── vca-converter.ts          # VCA format conversion
-│   └── utils.ts                  # General utilities
-├── rxoffice-edi-service/         # Local SOAP service
-│   ├── RxOfficeEDI/              # C# SOAP service
-│   ├── run.sh                    # macOS/Linux startup
-│   ├── run.bat                   # Windows startup
-│   └── README.md                 # SOAP service documentation
-├── .env.local                    # Environment variables
-├── package.json                  # Node.js dependencies
-└── README.md                     # This documentation
+const response = await fetch('/api/extract-order', {
+  method: 'POST',
+  body: formData
+})
 ```
 
-## 🔍 VCA Format Reference
+**Response Format**:
+```json
+{
+  "success": true,
+  "data": {
+    "DO": "B",
+    "JOB": "ORD123456",
+    "CLIENT": "John Doe",
+    "SHOPNUMBER": "ABC Optical",
+    "SPH": "-1.75;-1.75",
+    "CYL": "-0.50;-0.25",
+    "AX": "90;180",
+    "ADD": "2.00;2.00",
+    "IPD": "32.0;32.0",
+    "LNAM": "OVMDXV;OVMDXV",
+    "TINT": "Gray",
+    "ACOAT": "PT GREEN;PT GREEN"
+  },
+  "metadata": {
+    "fileName": "prescription.jpg",
+    "fileSize": 1024000
+  }
+}
+```
 
-The application generates VCA (Vision Council of America) format strings for RxOffice EDI:
+**Error Response**:
+```json
+{
+  "success": false,
+  "error": "No image file provided"
+}
+```
+
+### 2. Submit Order via SOAP
+
+**Endpoint**: `POST /api/create-order-soap`
+
+**Description**: Submits prescription orders to RxOffice EDI system via SOAP service.
+
+**Parameters**:
+```json
+{
+  "orderData": {
+    "JOB": "string (required)",
+    "CLIENT": "string (required)",
+    "DO": "string (default: B)",
+    "SPH": "string (R;L format)",
+    "CYL": "string (R;L format)",
+    "AX": "string (R;L format)",
+    "ADD": "string (R;L format)",
+    "IPD": "string (R;L format)",
+    "NPD": "string (R;L format)",
+    "HBOX": "string (R;L format)",
+    "VBOX": "string (R;L format)",
+    "DBL": "string (single value)",
+    "FED": "string (R;L format)",
+    "SEGHT": "string (R;L format)",
+    "LNAM": "string (R;L format)",
+    "TINT": "string",
+    "ACOAT": "string (R;L format)",
+    "ZTILT": "string (R;L format)",
+    "MBASE": "string (R;L format)",
+    "SHOPNUMBER": "string",
+    "ShopNumber": "string"
+  },
+  "credentials": {
+    "userName": "string (required)",
+    "password": "string (required)"
+  }
+}
+```
+
+**Request Example**:
+```javascript
+const response = await fetch('/api/create-order-soap', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    orderData: {
+      JOB: 'ORD123456',
+      CLIENT: 'ABC Optical Store',
+      DO: 'B',
+      SPH: '-1.75;-1.75',
+      CYL: '-0.50;-0.25',
+      AX: '90;180',
+      ADD: '2.00;2.00',
+      IPD: '32.0;32.0'
+    },
+    credentials: {
+      userName: '380',
+      password: 'ZOHO123'
+    }
+  })
+})
+```
+
+**Success Response**:
+```json
+{
+  "success": true,
+  "message": "Order created successfully",
+  "orderDetails": {
+    "orderId": "ORD123456",
+    "status": "submitted",
+    "vcaString": "DO=B\nJOB=ORD123456\nCLIENT=ABC Optical Store\n..."
+  }
+}
+```
+
+**Error Response**:
+```json
+{
+  "success": false,
+  "error": "Order ID (JOB) is required",
+  "details": "Validation failed for required fields"
+}
+```
+
+### 3. Test SOAP Connection
+
+**Endpoint**: `GET /api/create-order-soap`
+
+**Description**: Tests the connection to the RxOffice SOAP service.
+
+**Parameters**: None
+
+**Request Example**:
+```javascript
+const response = await fetch('/api/create-order-soap', {
+  method: 'GET'
+})
+```
+
+**Response**:
+```json
+{
+  "status": "SOAP service connection test",
+  "wsdlUrl": "http://localhost:5000/CommonEDIService.svc?wsdl",
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+### 4. Match Customer Names
+
+**Endpoint**: `POST /api/match-customer`
+
+**Description**: Searches the customer database for matching customer names and returns formatted results.
+
+**Parameters**:
+```json
+{
+  "name": "string (required, min 2 characters)"
+}
+```
+
+**Request Example**:
+```javascript
+const response = await fetch('/api/match-customer', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    name: 'ABC Optical'
+  })
+})
+```
+
+**Response**:
+```json
+{
+  "matched": true,
+  "exactMatch": false,
+  "fuzzyMatch": true,
+  "matchType": "fuzzy",
+  "code": "ABC001",
+  "customer": {
+    "name": "ABC Optical Store",
+    "city": "New York",
+    "code": "ABC001"
+  },
+  "alternativeMatches": [
+    {
+      "name": "ABC Vision Center",
+      "code": "ABC002",
+      "city": "Boston"
+    }
+  ]
+}
+```
+
+### 5. Match Lens Codes, Tints, and Coatings
+
+**Endpoint**: `POST /api/match-lens-code`
+
+**Description**: Universal endpoint for matching lens codes, tint codes, and coating codes against the database.
+
+**Parameters**:
+```json
+{
+  "code": "string (required, min 2 characters)"
+}
+```
+
+**Request Example**:
+```javascript
+const response = await fetch('/api/match-lens-code', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    code: 'OVMDXV'
+  })
+})
+```
+
+**Response**:
+```json
+{
+  "matched": true,
+  "exactMatch": true,
+  "code": "OVMDXV",
+  "lensCode": {
+    "code": "OVMDXV",
+    "retail_name": "Varilux Comfort DRx",
+    "description": "Progressive addition lens",
+    "manufacturer": "Essilor"
+  },
+  "alternativeMatches": [
+    {
+      "code": "OVMDX",
+      "retail_name": "Varilux Comfort",
+      "description": "Standard progressive lens"
+    }
+  ]
+}
+```
+
+## 🔧 VCA Format Reference
+
+The application generates VCA (Vision Council of America) format strings with newline separation:
 
 ```
-DO=B;JOB=ORDER123;CLIENT=John Doe;SPH=-1.75;-1.75;CYL=-0.50;-0.50;AX=90;90;ADD=2.00;2.00;IPD=64;DBL=17
+DO=B
+JOB=ORD123456
+CLIENT=ABC Optical Store
+SHOPNUMBER=ABC001|ABC Optical Store
+SPH=-1.75;-1.75
+CYL=-0.50;-0.25
+AX=90;180
+ADD=2.00;2.00
+IPD=32.0;32.0
+NPD=30.0;30.0
+HBOX=52.0;52.0
+VBOX=38.0;38.0
+DBL=18
+FED=55.0;55.0
+SEGHT=20.0;20.0
+LNAM=OVMDXV;OVMDXV
+TINT=Gray
+ACOAT=PT GREEN;PT GREEN
+ZTILT=8;8
+MBASE=6.00;6.00
 ```
 
 ### Key VCA Fields
@@ -212,130 +401,101 @@ DO=B;JOB=ORDER123;CLIENT=John Doe;SPH=-1.75;-1.75;CYL=-0.50;-0.50;AX=90;90;ADD=2
 | Field | Description | Format | Example |
 |-------|-------------|--------|---------|
 | `DO` | Delivery option | B/U/F/S | `DO=B` |
-| `JOB` | Order ID | String | `JOB=ORDER123` |
-| `CLIENT` | Customer name | String | `CLIENT=John Doe` |
+| `JOB` | Order ID | String | `JOB=ORD123456` |
+| `CLIENT` | Customer name | String | `CLIENT=ABC Optical` |
+| `SHOPNUMBER` | Shop code/name | CODE\|Name or Name | `SHOPNUMBER=ABC001\|ABC Optical` |
 | `SPH` | Sphere power | R;L | `SPH=-1.75;-1.75` |
-| `CYL` | Cylinder power | R;L | `CYL=-0.50;-0.50` |
-| `AX` | Axis | R;L | `AX=90;90` |
+| `CYL` | Cylinder power | R;L | `CYL=-0.50;-0.25` |
+| `AX` | Axis | R;L | `AX=90;180` |
 | `ADD` | Addition power | R;L | `ADD=2.00;2.00` |
-| `IPD` | Interpupillary distance | Single or R;L | `IPD=64` |
+| `IPD` | Interpupillary distance | R;L | `IPD=32.0;32.0` |
+| `LNAM` | Lens code | R;L | `LNAM=OVMDXV;OVMDXV` |
+
+## 🏗️ Project Structure
+
+```
+whatsapp-order-extractor/
+├── app/                          # Next.js app directory
+│   ├── api/                      # API routes
+│   │   ├── create-order-soap/    # SOAP integration endpoint
+│   │   ├── extract-order/        # Image processing endpoint
+│   │   ├── match-customer/       # Customer matching endpoint
+│   │   └── match-lens-code/      # Lens/tint/coating matching
+│   ├── globals.css               # Global styles
+│   ├── layout.tsx                # Root layout component
+│   └── page.tsx                  # Main application page
+├── components/                   # React components
+│   ├── ui/                       # Shadcn UI components
+│   └── image-extractor-form.tsx  # Main order form component
+├── lib/                          # Utility libraries
+│   ├── vca-converter.ts          # VCA format conversion
+│   └── utils.ts                  # General utilities
+├── .env.local                    # Environment variables
+├── package.json                  # Dependencies and scripts
+├── tailwind.config.js            # Tailwind CSS configuration
+├── tsconfig.json                 # TypeScript configuration
+└── README.md                     # This documentation
+```
+
+## 🔍 Usage Workflow
+
+### 1. Upload Image
+- Drag and drop or select prescription image
+- Supports JPG, PNG, PDF formats
+- Image preview with 4x zoom functionality
+
+### 2. AI Processing
+- GPT-4 Vision analyzes the image
+- Extracts prescription data automatically
+- Populates form with structured data
+
+### 3. Review and Edit
+- Smart form with database matching
+- Customer name auto-completion
+- Lens code validation and syncing
+- Tint and coating code matching
+
+### 4. Submit Order
+- Validates required fields
+- Generates VCA format string
+- Submits via SOAP to RxOffice EDI
+- Provides success confirmation
 
 ## 🐛 Troubleshooting
 
 ### Common Issues
 
-#### 1. SOAP Service Connection Failed
+**OpenAI API Errors**
+- Verify API key in `.env.local`
+- Check API quota and billing status
+- Ensure image size is under limits
 
-**Error**: `Cannot connect to SOAP service`
+**SOAP Service Connection**
+- Verify SOAP service is running
+- Check WSDL URL accessibility
+- Validate RxOffice credentials
 
-**Solutions**:
-- Ensure RxOffice EDI service is running: `cd rxoffice-edi-service && ./run.sh`
-- Check service health: `http://localhost:5000/health`
-- Verify WSDL URL: `http://localhost:5000/CommonEDIService.svc?wsdl`
-
-#### 2. Image Processing Errors
-
-**Error**: `Failed to process image`
-
-**Solutions**:
-- Verify OpenAI API key in `.env.local`
-- Check image format (JPG, PNG, PDF supported)
-- Ensure image file size is reasonable (< 20MB)
-- Check OpenAI API quota and billing
-
-#### 3. Order Validation Errors
-
-**Error**: `Order ID (JOB) is required` or `Customer name (CLIENT) is required`
-
-**Solutions**:
-- Ensure required fields are filled in the form
-- Click "Generate" for automatic Order ID creation
-- Enter customer name in the CLIENT field
-
-#### 4. Authentication Errors
-
-**Error**: `Authentication failed`
-
-**Solutions**:
-- Verify RxOffice username and password
-- Check credentials in the form
-- Ensure RxOffice account is active
+**Database Matching Issues**
+- Ensure database endpoints are configured
+- Check database connectivity
+- Verify matching API responses
 
 ### Debug Tools
 
-#### Console Logging
-
-Enable detailed logging by checking browser console (F12):
-- Order data extraction process
-- VCA string generation
-- SOAP service communication
-- Error details and stack traces
-
-#### Debug Modal
-
-Use the Debug button (🐛) to access:
-- Complete order data
-- Generated VCA string
-- Full API responses
-- Technical details and statistics
-
-### Performance Tips
-
-1. **Image Optimization**: Resize large images before upload
-2. **API Limits**: Be aware of OpenAI API rate limits
-3. **Local Development**: Use mock mode for testing without SOAP service
-4. **Network**: Ensure stable internet connection for AI processing
-
-## 🔄 Development Workflow
-
-### Making Changes
-
-1. **Frontend Changes**: Edit files in `app/`, `components/`, or `lib/`
-2. **API Changes**: Modify files in `app/api/`
-3. **SOAP Service**: Update files in `rxoffice-edi-service/`
-
-### Testing
-
-```bash
-# Run Next.js in development mode
-npm run dev
-
-# Build for production
-npm run build
-
-# Start production server
-npm start
-```
-
-### Database
-
-The application uses:
-- **In-memory database** for the SOAP service (resets on restart)
-- **No persistent storage** for the Next.js app
-- **Production**: Configure SQL Server in SOAP service for persistence
+- Browser console for detailed logs
+- Network tab for API request inspection
+- Form validation error messages
 
 ## 📞 Support
 
-### Getting Help
-
-1. **Check Logs**: Browser console and terminal output
-2. **Debug Modal**: Use the built-in debugging tools
-3. **SOAP Service**: Check `rxoffice-edi-service/README.md`
-4. **OpenAI Issues**: Verify API key and usage limits
-
-### Common Resources
-
-- [RxOffice EDI Documentation](rxoffice-edi-service/README.md)
-- [Next.js Documentation](https://nextjs.org/docs)
-- [OpenAI API Documentation](https://platform.openai.com/docs)
-- [VCA Format Specification](rxoffice-edi-service/QUICKSTART.md)
-
-## 📝 License
-
-This project is provided as a reference implementation for RxOffice EDI integration. Please ensure compliance with your licensing requirements.
+For technical support:
+1. Check browser console for errors
+2. Verify all environment variables
+3. Test API endpoints individually
+4. Review network requests in DevTools
 
 ---
 
-**🎉 Your RxOffice EDI Interface is ready to use!**
+**🎉 Ready to process prescriptions with AI!**
 
-Start by uploading a prescription image and watch the AI extract the data for submission to RxOffice systems. 
+Upload an image, let AI extract the data, review the results, and submit to RxOffice EDI systems. 

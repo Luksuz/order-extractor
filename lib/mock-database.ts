@@ -84,7 +84,7 @@ class MockDatabase {
         CreatedDate: new Date().toISOString(),
         ModifiedDate: new Date().toISOString(),
         CustomerName: orderData.CLIENT,
-        OrderId: orderData.JOB || `ORD${Date.now().toString().slice(-6)}`,
+        OrderId: orderData.JOB || `ORD${String(this.nextOrderId - 1).padStart(3, '0')}`,
         VcaData: vca,
         ShopNumber: orderData.SHOPNUMBER || undefined,
         Notes: undefined

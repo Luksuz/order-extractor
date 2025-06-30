@@ -6,7 +6,6 @@ import { z } from "zod"
 // VCA Order Schema for structured extraction
 const VCAOrderSchema = z.object({
   DO: z.string().default("B").describe("Eyes: B=Both, R=Right, L=Left"),
-  JOB: z.string().nullable().optional().describe("Customer ERP System Order Number"),
   SHOPNUMBER: z.string().optional().describe("The customer's company name or customer code if available"),
   CLIENT: z.string().optional().describe("Wearer's Name"),
   CLIENTF: z.string().optional().describe("Wearer's Name Abbreviation"),
@@ -27,8 +26,6 @@ const VCAOrderSchema = z.object({
   FED: z.string().optional().describe("Frame Effective Diameter Diagonal (format: right;left, e.g., '49.84;49.92')"),
   BVD: z.string().optional().describe("Back Vertex Distance (format: right;left, e.g., '13;13')"),
   PANTO: z.string().optional().describe("Pantoscopic Tilt (format: right;left)"),
-  ZTILT: z.string().optional().describe("Face Form Tilt - Lens Surface Curve (format: right;left)"),
-  MBASE: z.string().optional().describe("Marked Base Curve (must be either 'right' or 'left' if exists)"),
   SEGHT: z.string().optional().describe("Segment Height (format: right;left, e.g., '28.04;28.02')"),
   BCERIN: z.string().optional().describe("Horizontal Decentration In/Out (format: right;left, e.g., '0;0')"),
   BCERUP: z.string().optional().describe("Vertical Decentration Up/Down (format: right;left, e.g., '0;0')"),
@@ -85,7 +82,6 @@ Analyze the provided image to extract the most complete prescription data possib
 
 Basic Information:
 - DO: Eyes (B=Both, R=Right, L=Left) - default "B"
-- JOB: Customer ERP System Order Number
 - SHOPNUMBER: The customer's company name or customer code if name is not available (e.g., "MS OPTOMETRY SDN BHD")
 - CLIENT: Wearer's full name
 - CLIENTF: Wearer's name abbreviation/initials
@@ -116,10 +112,7 @@ Advanced Specifications:
 - ACOAT: Coating Code (e.g., "PT GREEN;PT GREEN")
 - COLR: Color Code (e.g., "Gray;Gray")
 - PANTO: Pantoscopic Tilt
-- ZTILT: Face Form Tilt
-- MBASE: Marked Base Curve
-- CRIB: Diameter 1 (e.g., "70;70")
-- ELLH: Diameter 2 (e.g., "70;70")
+- SEGHT: Segment Height
 - BCERIN: Horizontal Decentration (e.g., "0;0")
 - BCERUP: Vertical Decentration (e.g., "0;0")
 - MINTHKCD: Minimum Edge/Center Thickness (e.g., "0.51;0.51")

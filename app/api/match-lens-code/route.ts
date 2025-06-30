@@ -16,10 +16,11 @@ interface LensCodeMatch {
     retail_code: string | null
     source: 'rx_code' | 'stock_code'
   } | null
-  alternativeMatches: Array<{
+  suggestions: Array<{
     retail_name: string | null
     retail_code: string | null
     source: 'rx_code' | 'stock_code'
+    similarity?: number
   }>
 }
 
@@ -80,9 +81,18 @@ function findBestMatches(
         ? calculateSimilarity(searchTerm, record.retail_code) 
         : 0
       
+      // Prioritize name matches over code matches for better user experience
+      let similarity = Math.max(nameMatch, codeMatch)
+      
+      // If searching by name (contains letters/spaces), boost name match score
+      const isNameSearch = /[a-zA-Z\s]/.test(searchTerm)
+      if (isNameSearch && nameMatch > codeMatch) {
+        similarity = nameMatch * 1.1 // Boost name matches slightly
+      }
+      
       return {
         record,
-        similarity: Math.max(nameMatch, codeMatch),
+        similarity: Math.min(similarity, 1.0), // Cap at 1.0
         source
       }
     })
@@ -120,38 +130,64 @@ export async function POST(request: NextRequest) {
         exactMatch: false,
         code: null,
         lensCode: null,
-        alternativeMatches: []
+        suggestions: []
       })
     }
     
     const bestMatch = allMatches[0]
     const isExactMatch = bestMatch.similarity === 1.0
     
-    const response: LensCodeMatch = {
-      matched: true,
-      exactMatch: isExactMatch,
-      code: bestMatch.record.retail_code,
-      lensCode: {
-        retail_name: bestMatch.record.retail_name,
-        retail_code: bestMatch.record.retail_code,
-        source: bestMatch.source
-      },
-      alternativeMatches: allMatches.slice(1, 4).map(match => ({
+    // Format suggestions (top 3, excluding exact match if found)
+    const suggestions = allMatches
+      .filter(match => !isExactMatch || match.similarity < 1.0) // Exclude exact match from suggestions
+      .slice(0, 3)
+      .map(match => ({
         retail_name: match.record.retail_name,
         retail_code: match.record.retail_code,
-        source: match.source
+        source: match.source,
+        similarity: match.similarity
       }))
+
+    if (isExactMatch) {
+      // Auto-fill only on exact match
+      const response: LensCodeMatch = {
+        matched: true,
+        exactMatch: true,
+        code: bestMatch.record.retail_code,
+        lensCode: {
+          retail_name: bestMatch.record.retail_name,
+          retail_code: bestMatch.record.retail_code,
+          source: bestMatch.source
+        },
+        suggestions: suggestions
+      }
+      
+      console.log('✅ Exact lens code match found:', {
+        input: code,
+        matched: response.matched,
+        exactMatch: response.exactMatch,
+        bestMatch: response.lensCode
+      })
+      
+      return NextResponse.json(response)
+    } else {
+      // Return suggestions only, no auto-fill
+      const response: LensCodeMatch = {
+        matched: false,
+        exactMatch: false,
+        code: null,
+        lensCode: null,
+        suggestions: suggestions
+      }
+      
+      console.log('💡 Lens code suggestions found:', {
+        input: code,
+        suggestionsCount: suggestions.length,
+        topSuggestion: suggestions[0]?.retail_name
+      })
+      
+      return NextResponse.json(response)
     }
-    
-    console.log('✅ Lens code match result:', {
-      input: code,
-      matched: response.matched,
-      exactMatch: response.exactMatch,
-      bestMatch: response.lensCode,
-      alternativeCount: response.alternativeMatches.length
-    })
-    
-    return NextResponse.json(response)
     
   } catch (error) {
     console.error('❌ Error matching lens code:', error)

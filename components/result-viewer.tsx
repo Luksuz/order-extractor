@@ -155,9 +155,11 @@ export default function ResultViewer({
             <div>
               <span className="font-medium">Customer:</span> {order.CLIENT}
             </div>
-            <div>
-              <span className="font-medium">Order ID:</span> {order.JOB}
-            </div>
+            {order.JOB && (
+              <div>
+                <span className="font-medium">Order ID:</span> {order.JOB}
+              </div>
+            )}
             <div>
               <span className="font-medium">Eyes:</span> 
               <Badge className="ml-2">

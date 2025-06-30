@@ -26,7 +26,7 @@ export default function Home() {
   // Load cached credentials on component mount
   useEffect(() => {
     const cachedCredentials = localStorage.getItem('rxoffice_credentials')
-    if (cachedCredentials && extractedOrder) {
+    if (cachedCredentials && extractedOrder && !extractedOrder.rxoffice_username) {
       try {
         const credentials = JSON.parse(cachedCredentials)
         setExtractedOrder((prev: any) => ({
@@ -38,7 +38,7 @@ export default function Home() {
         console.warn('Failed to parse cached credentials:', error)
       }
     }
-  }, [extractedOrder])
+  }, [extractedOrder?.CLIENT, extractedOrder?.SHOPNUMBER]) // Only run when core order data changes, not credentials
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()

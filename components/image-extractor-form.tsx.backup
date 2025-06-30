@@ -51,6 +51,12 @@ export default function ImageExtractorForm({
   const [tintCodeSuggestions, setTintCodeSuggestions] = useState<any[]>([])
   const [coatingCodeSuggestions, setCoatingCodeSuggestions] = useState<any[]>([])
 
+  // Matched states for each field
+  const [isCustomerMatched, setIsCustomerMatched] = useState(false)
+  const [isLensMatched, setIsLensMatched] = useState(false)
+  const [isTintMatched, setIsTintMatched] = useState(false)
+  const [isCoatingMatched, setIsCoatingMatched] = useState(false)
+
   // Helper function to parse VCA format (R;L) into separate values
   const parseVCAValue = (vcaValue: string | undefined) => {
     if (!vcaValue) return { right: '', left: '' }
@@ -71,6 +77,7 @@ export default function ImageExtractorForm({
   const debouncedCustomerSearch = useCallback(async (value: string) => {
     if (!value || value.trim().length < 2) {
       setCustomerSuggestions([])
+      setIsCustomerMatched(false)
       return
     }
 
@@ -100,6 +107,7 @@ export default function ImageExtractorForm({
             }
           }))
           setCustomerSuggestions(result.suggestions || [])
+          setIsCustomerMatched(true)
         } else {
           // Show suggestions only, don't auto-fill
           setCustomerSuggestions(result.suggestions || [])
@@ -108,11 +116,13 @@ export default function ImageExtractorForm({
             customerMatchInfo: null,
             originalCustomerName: null
           }))
+          setIsCustomerMatched(false)
         }
       }
     } catch (error) {
       console.error('Error matching customer:', error)
       setCustomerSuggestions([])
+      setIsCustomerMatched(false)
     }
   }, [])
 
@@ -165,6 +175,7 @@ export default function ImageExtractorForm({
   const debouncedTintCodeSearch = useCallback(async (value: string) => {
     if (!value || value.trim().length < 2) {
       setTintCodeSuggestions([])
+      setIsTintMatched(false)
       return
     }
 
@@ -190,6 +201,7 @@ export default function ImageExtractorForm({
             }
           }))
           setTintCodeSuggestions(result.suggestions || [])
+          setIsTintMatched(true)
         } else {
           // Show suggestions only, don't auto-fill
           setTintCodeSuggestions(result.suggestions || [])
@@ -198,11 +210,13 @@ export default function ImageExtractorForm({
             tintCodeMatchInfo: null,
             originalTintCode: null
           }))
+          setIsTintMatched(false)
         }
       }
     } catch (error) {
       console.error('Error matching tint code:', error)
       setTintCodeSuggestions([])
+      setIsTintMatched(false)
     }
   }, [])
 
@@ -210,6 +224,7 @@ export default function ImageExtractorForm({
   const debouncedCoatingCodeSearch = useCallback(async (value: string) => {
     if (!value || value.trim().length < 2) {
       setCoatingCodeSuggestions([])
+      setIsCoatingMatched(false)
       return
     }
 
@@ -235,6 +250,7 @@ export default function ImageExtractorForm({
             }
           }))
           setCoatingCodeSuggestions(result.suggestions || [])
+          setIsCoatingMatched(true)
         } else {
           // Show suggestions only, don't auto-fill
           setCoatingCodeSuggestions(result.suggestions || [])
@@ -243,11 +259,13 @@ export default function ImageExtractorForm({
             coatingCodeMatchInfo: null,
             originalCoatingCode: null
           }))
+          setIsCoatingMatched(false)
         }
       }
     } catch (error) {
       console.error('Error matching coating code:', error)
       setCoatingCodeSuggestions([])
+      setIsCoatingMatched(false)
     }
   }, [])
 
@@ -266,6 +284,7 @@ export default function ImageExtractorForm({
       }
     }))
     setCustomerSuggestions([])
+    setIsCustomerMatched(true)
   }
 
   // Helper function to select a lens suggestion (updated to work with names)
@@ -289,6 +308,7 @@ export default function ImageExtractorForm({
       }
     }))
     setLensCodeSuggestions([])
+    setIsLensMatched(true)
   }
 
   const selectTintCodeSuggestion = (suggestion: any) => {
@@ -305,6 +325,7 @@ export default function ImageExtractorForm({
       }
     }))
     setTintCodeSuggestions([])
+    setIsTintMatched(true)
   }
 
   const selectCoatingCodeSuggestion = (suggestion: any) => {
@@ -321,6 +342,7 @@ export default function ImageExtractorForm({
       }
     }))
     setCoatingCodeSuggestions([])
+    setIsCoatingMatched(true)
   }
 
   useEffect(() => {
@@ -403,6 +425,9 @@ export default function ImageExtractorForm({
         clearTimeout(customerSearchTimer)
       }
 
+      // Reset matched state when user starts editing
+      setIsCustomerMatched(false)
+
       // Update form data immediately
       setFormData((prev: any) => ({
         ...prev,
@@ -427,6 +452,9 @@ export default function ImageExtractorForm({
       if (lensCodeSearchTimer) {
         clearTimeout(lensCodeSearchTimer)
       }
+
+      // Reset matched state when user starts editing
+      setIsLensMatched(false)
 
       // Update form data immediately
       setFormData((prev: any) => ({
@@ -453,6 +481,9 @@ export default function ImageExtractorForm({
         clearTimeout(tintCodeSearchTimer)
       }
 
+      // Reset matched state when user starts editing
+      setIsTintMatched(false)
+
       // Update form data immediately
       setFormData((prev: any) => ({
         ...prev,
@@ -477,6 +508,9 @@ export default function ImageExtractorForm({
       if (coatingCodeSearchTimer) {
         clearTimeout(coatingCodeSearchTimer)
       }
+
+      // Reset matched state when user starts editing
+      setIsCoatingMatched(false)
 
       // Update form data immediately
       setFormData((prev: any) => ({
@@ -510,6 +544,9 @@ export default function ImageExtractorForm({
       clearTimeout(lensCodeSearchTimer)
     }
 
+    // Reset matched state when user starts editing
+    setIsLensMatched(false)
+
     // Update lens names immediately
     setLensNames(prev => ({
       ...prev,
@@ -534,7 +571,10 @@ export default function ImageExtractorForm({
 
   // Separate function for lens code search to avoid closure issues
   const performLensCodeSearch = async (value: string) => {
-    if (!value || value.trim().length < 2) return
+    if (!value || value.trim().length < 2) {
+      setIsLensMatched(false)
+      return
+    }
 
     try {
       const response = await fetch('/api/match-lens-code', {
@@ -566,14 +606,17 @@ export default function ImageExtractorForm({
             }
           }))
           setLensCodeSuggestions(result.suggestions || [])
+          setIsLensMatched(true)
         } else {
           // Show suggestions only, don't auto-fill
           setLensCodeSuggestions(result.suggestions || [])
+          setIsLensMatched(false)
         }
       }
     } catch (error) {
       console.error('Error matching lens code:', error)
       setLensCodeSuggestions([])
+      setIsLensMatched(false)
     }
   }
 
@@ -728,9 +771,831 @@ export default function ImageExtractorForm({
                     value={formData.SHOPNUMBER || ""}
                     onChange={(e) => handleInputChange('SHOPNUMBER', e.target.value)}
                     placeholder="Customer or Shop Name"
-                    className="h-8 text-sm"
+                    className={`h-8 text-sm ${isCustomerMatched ? 'border-green-500 bg-green-50' : ''}`}
                   />
-                  <p className="text-xs text-gray-500 mt-1">💡 Start typing to see automatic suggestions from database</p>
+                  {isCustomerMatched ? (
+                    <p className="text-xs text-green-600 mt-1">✅ Matched from database</p>
+                  ) : (
+                    <p className="text-xs text-gray-500 mt-1">💡 Start typing to see automatic suggestions from database</p>
+                  )}
+                  {formData.customerMatchInfo && formData.customerMatchInfo.exactMatch && (
+                    <p className="text-xs text-green-600 mt-1">
+                      ✅ Exact match: {formData.customerMatchInfo.customerName}
+                    </p>
+                  )}
+                  {customerSuggestions.length > 0 && (
+                    <div className="mt-1 p-2 bg-gray-50 rounded text-xs">
+                      <p className="text-gray-600 mb-1">💡 Suggestions:</p>
+                      <div className="space-y-1">
+                        {customerSuggestions.map((suggestion, index) => (
+                          <button
+                            key={index}
+                            type="button"
+                            onClick={() => selectCustomerSuggestion(suggestion)}
+                            className="block w-full text-left p-1 hover:bg-blue-100 rounded text-blue-700"
+                          >
+                            {suggestion.name} ({suggestion.code})
+                            {suggestion.city && <span className="text-gray-500"> - {suggestion.city}</span>}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Prescription Data */}
+              <div className="lg:col-span-2">
+                <h3 className="text-base font-semibold mb-2">Prescription</h3>
+                
+                {/* Lens Name Search Field */}
+                <div className="mb-3">
+                  <Label htmlFor="lens-name-search" className="text-xs">Lens Name</Label>
+                  <Input
+                    id="lens-name-search"
+                    value={lensNames.right || lensNames.left || ""}
+                    onChange={(e) => handleLensNameChange('right', e.target.value)}
+                    placeholder="Search lens name (e.g., Progressive Standard)"
+"use client"
+
+import React, { useState, useEffect, useCallback } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { AlertCircle } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Separator } from "@/components/ui/separator"
+
+interface ImageExtractorFormProps {
+  orderData?: any
+  onSubmit: (data: any) => void
+  isLoading?: boolean
+  error?: string | null
+}
+
+export default function ImageExtractorForm({ 
+  orderData, 
+  onSubmit, 
+  isLoading = false, 
+  error 
+}: ImageExtractorFormProps) {
+  const [formData, setFormData] = useState<any>({
+    // Provide default values for required fields
+    CLIENT: 'Wearer Name', // This will be used for display, but SHOPNUMBER will be sent as CLIENT in SOAP
+    SHOPNUMBER: 'Customer/Shop Name', // This will become the CLIENT field in SOAP submission
+    DO: 'B',
+    // Default credentials
+    rxoffice_username: '380',
+    rxoffice_password: 'ZOHO123'
+  })
+
+  // Separate state for lens names (what users see) vs codes (what gets stored in VCA)
+  const [lensNames, setLensNames] = useState<{right: string, left: string}>({
+    right: '',
+    left: ''
+  })
+
+  // Debounce timers
+  const [customerSearchTimer, setCustomerSearchTimer] = useState<NodeJS.Timeout | null>(null)
+  const [lensCodeSearchTimer, setLensCodeSearchTimer] = useState<NodeJS.Timeout | null>(null)
+  const [tintCodeSearchTimer, setTintCodeSearchTimer] = useState<NodeJS.Timeout | null>(null)
+  const [coatingCodeSearchTimer, setCoatingCodeSearchTimer] = useState<NodeJS.Timeout | null>(null)
+
+  // Suggestions state
+  const [customerSuggestions, setCustomerSuggestions] = useState<any[]>([])
+  const [lensCodeSuggestions, setLensCodeSuggestions] = useState<any[]>([])
+  const [tintCodeSuggestions, setTintCodeSuggestions] = useState<any[]>([])
+  const [coatingCodeSuggestions, setCoatingCodeSuggestions] = useState<any[]>([])
+
+  // Matched states for each field
+  const [isCustomerMatched, setIsCustomerMatched] = useState(false)
+  const [isLensMatched, setIsLensMatched] = useState(false)
+  const [isTintMatched, setIsTintMatched] = useState(false)
+  const [isCoatingMatched, setIsCoatingMatched] = useState(false)
+
+  // Helper function to parse VCA format (R;L) into separate values
+  const parseVCAValue = (vcaValue: string | undefined) => {
+    if (!vcaValue) return { right: '', left: '' }
+    const parts = vcaValue.split(';')
+    return {
+      right: parts[0] || '',
+      left: parts[1] || ''
+    }
+  }
+
+  // Helper function to combine separate values into VCA format (R;L)
+  const combineToVCA = (right: string, left: string) => {
+    if (!right && !left) return ''
+    return `${right || ''};${left || ''}`
+  }
+
+  // Debounced customer search function
+  const debouncedCustomerSearch = useCallback(async (value: string) => {
+    if (!value || value.trim().length < 2) {
+      setCustomerSuggestions([])
+      setIsCustomerMatched(false)
+      return
+    }
+
+    try {
+      const response = await fetch('/api/match-customer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: value })
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        
+        if (result.exactMatch && result.matched && result.code) {
+          // Auto-fill only on exact match
+          const formattedShopNumber = `${result.code}|${result.customer.name}`
+          setFormData((prev: any) => ({
+            ...prev,
+            SHOPNUMBER: formattedShopNumber,
+            originalCustomerName: value,
+            customerMatchInfo: {
+              exactMatch: result.exactMatch,
+              fuzzyMatch: result.fuzzyMatch,
+              matchType: result.matchType,
+              customerName: result.customer.name,
+              customerCity: result.customer.city
+            }
+          }))
+          setCustomerSuggestions(result.suggestions || [])
+          setIsCustomerMatched(true)
+        } else {
+          // Show suggestions only, don't auto-fill
+          setCustomerSuggestions(result.suggestions || [])
+          setFormData((prev: any) => ({
+            ...prev,
+            customerMatchInfo: null,
+            originalCustomerName: null
+          }))
+          setIsCustomerMatched(false)
+        }
+      }
+    } catch (error) {
+      console.error('Error matching customer:', error)
+      setCustomerSuggestions([])
+      setIsCustomerMatched(false)
+    }
+  }, [])
+
+  // Debounced lens code search function (updated to search by name)
+  const debouncedLensCodeSearch = useCallback(async (value: string) => {
+    if (!value || value.trim().length < 2) {
+      setLensCodeSuggestions([])
+      return
+    }
+
+    try {
+      const response = await fetch('/api/match-lens-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: value }) // API still expects 'code' but we're searching by name
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        
+        if (result.exactMatch && result.matched && result.code) {
+          // Auto-fill only on exact match - store code but keep the name displayed
+          setFormData((prev: any) => ({
+            ...prev,
+            LNAM: result.code, // Store the code for VCA
+            originalLensCode: value,
+            lensCodeMatchInfo: {
+              exactMatch: result.exactMatch,
+              lensCode: result.lensCode
+            }
+          }))
+          setLensCodeSuggestions(result.suggestions || [])
+        } else {
+          // Show suggestions only, don't auto-fill
+          setLensCodeSuggestions(result.suggestions || [])
+          setFormData((prev: any) => ({
+            ...prev,
+            lensCodeMatchInfo: null,
+            originalLensCode: null
+          }))
+        }
+      }
+    } catch (error) {
+      console.error('Error matching lens code:', error)
+      setLensCodeSuggestions([])
+    }
+  }, [])
+
+  // Debounced tint code search function
+  const debouncedTintCodeSearch = useCallback(async (value: string) => {
+    if (!value || value.trim().length < 2) {
+      setTintCodeSuggestions([])
+      setIsTintMatched(false)
+      return
+    }
+
+    try {
+      const response = await fetch('/api/match-lens-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: value })
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        
+        if (result.exactMatch && result.matched && result.code) {
+          // Auto-fill only on exact match
+          setFormData((prev: any) => ({
+            ...prev,
+            TINT: result.code,
+            originalTintCode: value,
+            tintCodeMatchInfo: {
+              exactMatch: result.exactMatch,
+              tintCode: result.lensCode
+            }
+          }))
+          setTintCodeSuggestions(result.suggestions || [])
+          setIsTintMatched(true)
+        } else {
+          // Show suggestions only, don't auto-fill
+          setTintCodeSuggestions(result.suggestions || [])
+          setFormData((prev: any) => ({
+            ...prev,
+            tintCodeMatchInfo: null,
+            originalTintCode: null
+          }))
+          setIsTintMatched(false)
+        }
+      }
+    } catch (error) {
+      console.error('Error matching tint code:', error)
+      setTintCodeSuggestions([])
+      setIsTintMatched(false)
+    }
+  }, [])
+
+  // Debounced coating code search function
+  const debouncedCoatingCodeSearch = useCallback(async (value: string) => {
+    if (!value || value.trim().length < 2) {
+      setCoatingCodeSuggestions([])
+      setIsCoatingMatched(false)
+      return
+    }
+
+    try {
+      const response = await fetch('/api/match-lens-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: value })
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        
+        if (result.exactMatch && result.matched && result.code) {
+          // Auto-fill only on exact match
+          setFormData((prev: any) => ({
+            ...prev,
+            ACOAT: result.code,
+            originalCoatingCode: value,
+            coatingCodeMatchInfo: {
+              exactMatch: result.exactMatch,
+              coatingCode: result.lensCode
+            }
+          }))
+          setCoatingCodeSuggestions(result.suggestions || [])
+          setIsCoatingMatched(true)
+        } else {
+          // Show suggestions only, don't auto-fill
+          setCoatingCodeSuggestions(result.suggestions || [])
+          setFormData((prev: any) => ({
+            ...prev,
+            coatingCodeMatchInfo: null,
+            originalCoatingCode: null
+          }))
+          setIsCoatingMatched(false)
+        }
+      }
+    } catch (error) {
+      console.error('Error matching coating code:', error)
+      setCoatingCodeSuggestions([])
+      setIsCoatingMatched(false)
+    }
+  }, [])
+
+  // Helper function to select a suggestion
+  const selectCustomerSuggestion = (suggestion: any) => {
+    const formattedShopNumber = `${suggestion.code}|${suggestion.name}`
+    setFormData((prev: any) => ({
+      ...prev,
+      SHOPNUMBER: formattedShopNumber,
+      customerMatchInfo: {
+        exactMatch: false,
+        fuzzyMatch: true,
+        matchType: suggestion.matchType,
+        customerName: suggestion.name,
+        customerCity: suggestion.city
+      }
+    }))
+    setCustomerSuggestions([])
+    setIsCustomerMatched(true)
+  }
+
+  // Helper function to select a lens suggestion (updated to work with names)
+  const selectLensCodeSuggestion = (suggestion: any) => {
+    // Set both eyes to the same name and code
+    setLensNames({
+      right: suggestion.retail_name || suggestion.retail_code,
+      left: suggestion.retail_name || suggestion.retail_code
+    })
+    
+    setFormData((prev: any) => ({
+      ...prev,
+      LNAM: `${suggestion.retail_code};${suggestion.retail_code}`, // Store codes in VCA format
+      lensCodeMatchInfo: {
+        exactMatch: false,
+        lensCode: {
+          retail_name: suggestion.retail_name,
+          retail_code: suggestion.retail_code,
+          source: suggestion.source
+        }
+      }
+    }))
+    setLensCodeSuggestions([])
+    setIsLensMatched(true)
+  }
+
+  const selectTintCodeSuggestion = (suggestion: any) => {
+    setFormData((prev: any) => ({
+      ...prev,
+      TINT: suggestion.retail_code,
+      tintCodeMatchInfo: {
+        exactMatch: false,
+        tintCode: {
+          retail_name: suggestion.retail_name,
+          retail_code: suggestion.retail_code,
+          source: suggestion.source
+        }
+      }
+    }))
+    setTintCodeSuggestions([])
+    setIsTintMatched(true)
+  }
+
+  const selectCoatingCodeSuggestion = (suggestion: any) => {
+    setFormData((prev: any) => ({
+      ...prev,
+      ACOAT: suggestion.retail_code,
+      coatingCodeMatchInfo: {
+        exactMatch: false,
+        coatingCode: {
+          retail_name: suggestion.retail_name,
+          retail_code: suggestion.retail_code,
+          source: suggestion.source
+        }
+      }
+    }))
+    setCoatingCodeSuggestions([])
+    setIsCoatingMatched(true)
+  }
+
+  useEffect(() => {
+    // Load cached credentials first
+    const cachedCredentials = localStorage.getItem('rxoffice_credentials')
+    let credentialsFromCache = {}
+    
+    if (cachedCredentials) {
+      try {
+        const credentials = JSON.parse(cachedCredentials)
+        credentialsFromCache = {
+          rxoffice_username: credentials.userName,
+          rxoffice_password: credentials.password
+        }
+      } catch (error) {
+        console.warn('Failed to parse cached credentials:', error)
+      }
+    }
+
+    if (orderData) {
+      setFormData((prevData: any) => {
+        // Only update if there's actually new data to prevent unnecessary re-renders
+        const newData = {
+          ...prevData, // Keep defaults
+          ...credentialsFromCache, // Apply cached credentials
+          ...orderData // Override with extracted data (but not credentials if they exist in cache)
+        }
+        
+        // Simple comparison to avoid unnecessary updates
+        if (JSON.stringify(newData) === JSON.stringify(prevData)) {
+          return prevData
+        }
+        
+        return newData
+      })
+      
+      // Initialize lens names from extracted data if LNAM exists
+      if (orderData.LNAM) {
+        const parsedLensCode = parseVCAValue(orderData.LNAM)
+        // For now, display codes as names since we don't have the names from extraction
+        // In a real scenario, you'd want to look up the names from the codes
+        setLensNames(prev => {
+          const newLensNames = {
+            right: parsedLensCode.right,
+            left: parsedLensCode.left
+          }
+          
+          // Only update if values actually changed
+          if (prev.right === newLensNames.right && prev.left === newLensNames.left) {
+            return prev
+          }
+          
+          return newLensNames
+        })
+      }
+    } else if (Object.keys(credentialsFromCache).length > 0) {
+      // Apply cached credentials even if no orderData
+      setFormData((prevData: any) => {
+        const newData = {
+          ...prevData,
+          ...credentialsFromCache
+        }
+        
+        // Only update if credentials actually changed
+        if (prevData.rxoffice_username === newData.rxoffice_username && 
+            prevData.rxoffice_password === newData.rxoffice_password) {
+          return prevData
+        }
+        
+        return newData
+      })
+    }
+  }, [orderData])
+
+  const handleInputChange = async (field: string, value: string) => {
+    // Handle customer name matching for SHOPNUMBER field with debounce
+    if (field === 'SHOPNUMBER') {
+      // Clear existing timer and suggestions
+      if (customerSearchTimer) {
+        clearTimeout(customerSearchTimer)
+      }
+
+      // Reset matched state when user starts editing
+      setIsCustomerMatched(false)
+
+      // Update form data immediately
+      setFormData((prev: any) => ({
+        ...prev,
+        [field]: value,
+        customerMatchInfo: null,
+        originalCustomerName: null
+      }))
+      setCustomerSuggestions([])
+
+      // Set new timer for database search
+      const newTimer = setTimeout(() => {
+        debouncedCustomerSearch(value)
+      }, 1000)
+      
+      setCustomerSearchTimer(newTimer)
+      return
+    }
+
+    // Handle lens code matching (LNAM field) with debounce and sync both eyes
+    if (field === 'LNAM') {
+      // Clear existing timer and suggestions
+      if (lensCodeSearchTimer) {
+        clearTimeout(lensCodeSearchTimer)
+      }
+
+      // Reset matched state when user starts editing
+      setIsLensMatched(false)
+
+      // Update form data immediately
+      setFormData((prev: any) => ({
+        ...prev,
+        [field]: value,
+        lensCodeMatchInfo: null,
+        originalLensCode: null
+      }))
+      setLensCodeSuggestions([])
+
+      // Set new timer for database search
+      const newTimer = setTimeout(() => {
+        performLensCodeSearch(value)
+      }, 1000)
+      
+      setLensCodeSearchTimer(newTimer)
+      return
+    }
+
+    // Handle tint code matching with debounce
+    if (field === 'TINT') {
+      // Clear existing timer and suggestions
+      if (tintCodeSearchTimer) {
+        clearTimeout(tintCodeSearchTimer)
+      }
+
+      // Reset matched state when user starts editing
+      setIsTintMatched(false)
+
+      // Update form data immediately
+      setFormData((prev: any) => ({
+        ...prev,
+        [field]: value,
+        tintCodeMatchInfo: null,
+        originalTintCode: null
+      }))
+      setTintCodeSuggestions([])
+
+      // Set new timer for database search
+      const newTimer = setTimeout(() => {
+        debouncedTintCodeSearch(value)
+      }, 1000)
+      
+      setTintCodeSearchTimer(newTimer)
+      return
+    }
+
+    // Handle coating code matching with debounce
+    if (field === 'ACOAT') {
+      // Clear existing timer and suggestions
+      if (coatingCodeSearchTimer) {
+        clearTimeout(coatingCodeSearchTimer)
+      }
+
+      // Reset matched state when user starts editing
+      setIsCoatingMatched(false)
+
+      // Update form data immediately
+      setFormData((prev: any) => ({
+        ...prev,
+        [field]: value,
+        coatingCodeMatchInfo: null,
+        originalCoatingCode: null
+      }))
+      setCoatingCodeSuggestions([])
+
+      // Set new timer for database search
+      const newTimer = setTimeout(() => {
+        debouncedCoatingCodeSearch(value)
+      }, 1000)
+      
+      setCoatingCodeSearchTimer(newTimer)
+      return
+    }
+
+    // Regular field updates (non-searchable fields)
+    setFormData((prev: any) => ({
+      ...prev,
+      [field]: value
+    }))
+  }
+
+  // Handle lens name field changes (new function)
+  const handleLensNameChange = (eye: 'right' | 'left', value: string) => {
+    // Clear existing timer and suggestions
+    if (lensCodeSearchTimer) {
+      clearTimeout(lensCodeSearchTimer)
+    }
+
+    // Reset matched state when user starts editing
+    setIsLensMatched(false)
+
+    // Update lens names immediately
+    setLensNames(prev => ({
+      ...prev,
+      [eye]: value
+    }))
+    
+    // Clear existing match info
+    setFormData((prev: any) => ({
+      ...prev,
+      lensCodeMatchInfo: null,
+      originalLensCode: null
+    }))
+    setLensCodeSuggestions([])
+
+    // Set new timer for database search
+    const newTimer = setTimeout(() => {
+      performLensCodeSearch(value)
+    }, 1000)
+    
+    setLensCodeSearchTimer(newTimer)
+  }
+
+  // Separate function for lens code search to avoid closure issues
+  const performLensCodeSearch = async (value: string) => {
+    if (!value || value.trim().length < 2) {
+      setIsLensMatched(false)
+      return
+    }
+
+    try {
+      const response = await fetch('/api/match-lens-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: value })
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        
+        if (result.exactMatch && result.matched && result.code) {
+          // Sync both eyes with the matched code and name only on exact match
+          const syncedCode = `${result.code};${result.code}`
+          const matchedName = result.lensCode.retail_name || result.code
+          
+          setLensNames({
+            right: matchedName,
+            left: matchedName
+          })
+          
+          setFormData((prev: any) => ({
+            ...prev,
+            LNAM: syncedCode,
+            originalLensCode: value,
+            lensCodeMatchInfo: {
+              exactMatch: result.exactMatch,
+              lensCode: result.lensCode
+            }
+          }))
+          setLensCodeSuggestions(result.suggestions || [])
+          setIsLensMatched(true)
+        } else {
+          // Show suggestions only, don't auto-fill
+          setLensCodeSuggestions(result.suggestions || [])
+          setIsLensMatched(false)
+        }
+      }
+    } catch (error) {
+      console.error('Error matching lens code:', error)
+      setLensCodeSuggestions([])
+      setIsLensMatched(false)
+    }
+  }
+
+  // Handle separate eye field changes (only for prescription fields)
+  const handleEyeFieldChange = (baseField: string, eye: 'right' | 'left', value: string) => {
+    // Regular handling for all eye fields including lens codes
+    const currentVCA = parseVCAValue(formData[baseField])
+    const newVCA = eye === 'right' 
+      ? combineToVCA(value, currentVCA.left)
+      : combineToVCA(currentVCA.right, value)
+    
+    setFormData((prev: any) => ({
+      ...prev,
+      [baseField]: newVCA
+    }))
+  }
+
+  // Cleanup timers on component unmount
+  useEffect(() => {
+    return () => {
+      if (customerSearchTimer) clearTimeout(customerSearchTimer)
+      if (lensCodeSearchTimer) clearTimeout(lensCodeSearchTimer)
+      if (tintCodeSearchTimer) clearTimeout(tintCodeSearchTimer)
+      if (coatingCodeSearchTimer) clearTimeout(coatingCodeSearchTimer)
+      
+      // Clear all suggestions on unmount
+      setCustomerSuggestions([])
+      setLensCodeSuggestions([])
+      setTintCodeSuggestions([])
+      setCoatingCodeSuggestions([])
+    }
+  }, []) // Empty dependency array - only run on unmount
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    // Submit the order data
+    const submissionData = {
+      ...formData,
+      // CLIENT field should contain the shop/customer information from SHOPNUMBER
+      // DO NOT change this mapping - it's critical for the SOAP order submission
+      // The SOAP service expects CLIENT to contain the actual customer/shop name
+      CLIENT: formData.SHOPNUMBER || formData.CLIENT, // Use SHOPNUMBER as CLIENT for SOAP order
+    }
+    
+    console.log('📤 Form submitting with data:', submissionData)
+    onSubmit(submissionData)
+  }
+
+  if (!orderData && !Object.keys(formData).length) {
+    return (
+      <Card className="h-full">
+        <CardHeader>
+          <CardTitle>Extracted Order Data</CardTitle>
+          <CardDescription>
+            Upload and process an image to see extracted prescription data here
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center h-64">
+          <p className="text-gray-500">No data extracted yet</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <div className="h-full flex flex-col bg-white">
+      
+      <div className="flex-1 min-h-0">
+        <form onSubmit={handleSubmit} className="h-full flex flex-col">
+          {/* Submit Button at Top */}
+          <div className="flex-shrink-0 p-4 border-b border-gray-200">
+            <Button 
+              type="submit" 
+              disabled={isLoading}
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+            >
+              {isLoading ? "Submitting..." : "Submit Order"}
+            </Button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-w-none">
+              {/* RxOffice Credentials */}
+              <div className="lg:col-span-2">
+                <h3 className="text-base font-semibold mb-2">Customer Service Login</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="rxoffice_username" className="text-xs">Username</Label>
+                    <Input
+                      id="rxoffice_username"
+                      value={formData.rxoffice_username || ""}
+                      onChange={(e) => handleInputChange('rxoffice_username', e.target.value)}
+                      placeholder="RxOffice username"
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="rxoffice_password" className="text-xs">Password</Label>
+                    <Input
+                      id="rxoffice_password"
+                      type="password"
+                      value={formData.rxoffice_password || ""}
+                      onChange={(e) => handleInputChange('rxoffice_password', e.target.value)}
+                      placeholder="RxOffice password"
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Basic Order Information */}
+              <div className="lg:col-span-2">
+                <h3 className="text-base font-semibold mb-2">Basic Information</h3>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <Label htmlFor="JOB" className="text-xs">Reference</Label>
+                    <Input
+                      id="JOB"
+                      value={formData.JOB || ""}
+                      onChange={(e) => handleInputChange('JOB', e.target.value)}
+                      placeholder="Order Number"
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="ShopNumber" className="text-xs">ERP Query Number</Label>
+                    <Input
+                      id="ShopNumber"
+                      value={formData.ShopNumber || ""}
+                      onChange={(e) => handleInputChange('ShopNumber', e.target.value)}
+                      placeholder="ERP Query Number"
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="CLIENT" className="text-xs">Wearer's Name</Label>
+                    <Input
+                      id="CLIENT"
+                      value={formData.CLIENT || ""}
+                      onChange={(e) => handleInputChange('CLIENT', e.target.value)}
+                      placeholder="Full name"
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                </div>
+                
+                <div className="mt-3">
+                  <Label htmlFor="SHOPNUMBER" className="text-xs">Customer/Shop Name</Label>
+                  <Input
+                    id="SHOPNUMBER"
+                    value={formData.SHOPNUMBER || ""}
+                    onChange={(e) => handleInputChange('SHOPNUMBER', e.target.value)}
+                    placeholder="Customer or Shop Name"
+                    className={`h-8 text-sm ${isCustomerMatched ? 'border-green-500 bg-green-50' : ''}`}
+                  />
+                  {isCustomerMatched ? (
+                    <p className="text-xs text-green-600 mt-1">✅ Matched from database</p>
+                  ) : (
+                    <p className="text-xs text-gray-500 mt-1">💡 Start typing to see automatic suggestions from database</p>
+                  )}
                   {formData.customerMatchInfo && formData.customerMatchInfo.exactMatch && (
                     <p className="text-xs text-green-600 mt-1">
                       ✅ Exact match: {formData.customerMatchInfo.customerName}

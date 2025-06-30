@@ -133,13 +133,12 @@ export function validateOrderData(orderData: OrderData): { isValid: boolean; err
   
   const errors: string[] = []
 
-  // Required fields validation
+  // Note: JOB field is now optional since we don't require reference IDs
   console.log('🔍 Checking JOB field:', orderData.JOB)
-  if (!orderData.JOB || orderData.JOB.trim() === '') {
-    console.log('❌ JOB field is missing or empty')
-    errors.push('Order ID (JOB) is required')
+  if (orderData.JOB) {
+    console.log('✅ JOB field provided:', orderData.JOB)
   } else {
-    console.log('✅ JOB field is valid:', orderData.JOB)
+    console.log('ℹ️ JOB field is optional and not provided')
   }
 
   console.log('🔍 Checking CLIENT field:', orderData.CLIENT)

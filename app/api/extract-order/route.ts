@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
 
     // Initialize the LLM with structured output
     const llm = new ChatOpenAI({
-      modelName: "gpt-4o-mini",
+      modelName: "gpt-4o",
       temperature: 0,
       maxTokens: 5000,
       apiKey: OPENAI_API_KEY,

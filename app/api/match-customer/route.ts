@@ -175,26 +175,52 @@ export async function POST(request: NextRequest) {
     // Normalize the name for comparison (case insensitive, trim whitespace)
     const normalizedSearchName = name.trim().toLowerCase()
 
-    if (normalizedSearchName.length < 2) {
+    if (normalizedSearchName.length < 1) {
       return NextResponse.json({
         matched: false,
         exactMatch: false,
         code: null,
         customer: null,
         suggestions: [],
+        allCustomers: [],
         message: 'Name too short for matching'
       })
     }
 
-    // Query the Supabase customer database with multiple matching strategies
-    // 1. First try exact match (case insensitive)
-    let { data: customers, error } = await supabase
+    // Get all customers for dropdown
+    const { data: allCustomers, error: allError } = await supabase
+      .from('customer')
+      .select('id, code, name, address1, address2, zip_postal_code, city, description')
+      .not('name', 'is', null)
+      .order('name')
+      .limit(100)
+
+    if (allError) {
+      console.error('Supabase all customers query error:', allError)
+      return NextResponse.json(
+        { error: 'Database query failed' },
+        { status: 500 }
+      )
+    }
+
+    // Clean and split search terms into individual words
+    const searchWords = normalizedSearchName
+      .replace(/[^\w\s]/g, ' ') // Replace punctuation with spaces
+      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+      .trim()
+      .split(' ')
+      .filter(word => word.length > 1) // Filter out single character words
+
+    console.log('🔍 Search words:', searchWords)
+
+    // First try exact match (case insensitive)
+    let { data: exactMatches, error } = await supabase
       .from('customer')
       .select('id, code, name, address1, address2, zip_postal_code, city, description')
       .ilike('name', normalizedSearchName)
-      .limit(10) // Get more potential matches for better exact match detection
+      .limit(5)
 
-    console.log('🔍 Exact match candidates:', customers)
+    console.log('🔍 Exact match candidates:', exactMatches)
 
     if (error) {
       console.error('Supabase query error:', error)
@@ -207,20 +233,13 @@ export async function POST(request: NextRequest) {
     let exactMatchFound = false
     let exactMatchCustomer = null
 
-    // Check for true exact match with improved normalization
-    if (customers && customers.length > 0) {
-      const exactMatch = customers.find(c => {
+    // Check for true exact match
+    if (exactMatches && exactMatches.length > 0) {
+      const exactMatch = exactMatches.find(c => {
         if (!c.name) return false
-        
-        // Normalize both names consistently
         const customerNameNormalized = c.name.toLowerCase().trim()
-        const searchNameNormalized = normalizedSearchName.toLowerCase().trim()
-        
-        // Check exact match
-        const isExact = customerNameNormalized === searchNameNormalized
-        
-        console.log(`🔍 Comparing: "${searchNameNormalized}" === "${customerNameNormalized}" = ${isExact}`)
-        
+        const isExact = customerNameNormalized === normalizedSearchName
+        console.log(`🔍 Comparing: "${normalizedSearchName}" === "${customerNameNormalized}" = ${isExact}`)
         return isExact
       })
       
@@ -231,75 +250,65 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Always get additional customers for suggestions
-    const { data: allCustomers, error: allError } = await supabase
-      .from('customer')
-      .select('id, code, name, address1, address2, zip_postal_code, city, description')
-      .not('name', 'is', null)
-      .limit(50) // Get more for better suggestions
-
-    if (allError) {
-      console.error('Supabase all customers query error:', allError)
-    }
-
-    // Find fuzzy matches for suggestions
-    const suggestions: any[] = []
+    // Word-by-word substring matching using ILIKE
+    const wordMatches: any[] = []
     
-    if (allCustomers && allCustomers.length > 0) {
-      // First try partial matches (starts with or contains)
-      const partialMatches = allCustomers.filter(c => {
-        if (!c.name) return false
-        const customerName = c.name.toLowerCase()
-        const searchLower = normalizedSearchName.toLowerCase()
+    if (searchWords.length > 0 && allCustomers) {
+      for (const customer of allCustomers) {
+        if (!customer.name) continue
         
-        return customerName.includes(searchLower) || 
-               searchLower.includes(customerName) ||
-               customerName.startsWith(searchLower)
-      })
-
-      // Add partial matches to suggestions
-      suggestions.push(...partialMatches.slice(0, 3))
-
-      // If we don't have enough suggestions, add fuzzy matches
-      if (suggestions.length < 3) {
-        const fuzzyMatches = []
-        const searchParts = splitAndCleanBusinessNames(normalizedSearchName)
+        let matchScore = 0
+        const customerNameLower = customer.name.toLowerCase()
         
-        for (const customer of allCustomers) {
-          if (!customer.name || suggestions.some(s => s.id === customer.id)) continue
-          
-          const fuzzyMatch = findBestFuzzyMatch(normalizedSearchName, [customer])
-          if (fuzzyMatch && fuzzyMatch.score > 0.4) {
-            fuzzyMatches.push({
-              ...customer,
-              matchScore: fuzzyMatch.score,
-              matchType: fuzzyMatch.matchType
-            })
+        // Check how many search words match in the customer name
+        for (const word of searchWords) {
+          if (customerNameLower.includes(word.toLowerCase())) {
+            matchScore += 1
           }
         }
         
-        // Sort by match score and add to suggestions
-        fuzzyMatches.sort((a, b) => b.matchScore - a.matchScore)
-        suggestions.push(...fuzzyMatches.slice(0, 3 - suggestions.length))
+        // If at least one word matches, include in results
+        if (matchScore > 0) {
+          wordMatches.push({
+            ...customer,
+            matchScore,
+            matchPercentage: (matchScore / searchWords.length) * 100
+          })
+        }
       }
+      
+      // Sort by match score (descending) and then by name
+      wordMatches.sort((a, b) => {
+        if (b.matchScore !== a.matchScore) {
+          return b.matchScore - a.matchScore
+        }
+        return a.name.localeCompare(b.name)
+      })
     }
 
-    // Ensure we have unique suggestions and format them
-    const uniqueSuggestions = suggestions
-      .filter((customer, index, self) => 
-        index === self.findIndex(c => c.id === customer.id)
-      )
-      .slice(0, 3)
+    // Format suggestions (top matches)
+    const suggestions = wordMatches
+      .slice(0, 10)
       .map(c => ({
         id: c.id,
         code: c.code,
         name: c.name,
         city: c.city,
-        matchType: c.matchType || 'partial'
+        matchType: c.matchScore === searchWords.length ? 'full_word_match' : 'partial_word_match',
+        matchScore: c.matchScore,
+        matchPercentage: c.matchPercentage
       }))
 
+    // Format all customers for dropdown
+    const formattedAllCustomers = (allCustomers || []).map(c => ({
+      id: c.id,
+      code: c.code,
+      name: c.name,
+      city: c.city
+    }))
+
     if (exactMatchFound && exactMatchCustomer) {
-      // Return exact match with auto-fill data + suggestions
+      // Return exact match with auto-fill data + suggestions + all customers
       return NextResponse.json({
         matched: true,
         exactMatch: true,
@@ -316,20 +325,24 @@ export async function POST(request: NextRequest) {
           city: exactMatchCustomer.city,
           description: exactMatchCustomer.description
         },
-        suggestions: uniqueSuggestions.filter(s => s.id !== exactMatchCustomer.id)
+        suggestions: suggestions.filter(s => s.id !== exactMatchCustomer.id),
+        allCustomers: formattedAllCustomers,
+        searchWords
       })
     } else {
-      // Return suggestions only, no auto-fill
+      // Return suggestions + all customers for dropdown
       return NextResponse.json({
         matched: false,
         exactMatch: false,
-        fuzzyMatch: uniqueSuggestions.length > 0,
-        matchType: 'suggestions_only',
+        fuzzyMatch: suggestions.length > 0,
+        matchType: 'word_matching',
         code: null,
         customer: null,
-        suggestions: uniqueSuggestions,
-        message: uniqueSuggestions.length > 0 
-          ? `Found ${uniqueSuggestions.length} similar customers` 
+        suggestions,
+        allCustomers: formattedAllCustomers,
+        searchWords,
+        message: suggestions.length > 0 
+          ? `Found ${suggestions.length} customers matching "${searchWords.join(', ')}"` 
           : 'No matching customers found'
       })
     }

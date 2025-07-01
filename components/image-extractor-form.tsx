@@ -33,6 +33,10 @@ export default function ImageExtractorForm({
     rxoffice_password: 'ZOHO123'
   })
 
+  // Separate state for customer code and name
+  const [customerCode, setCustomerCode] = useState<string>('')
+  const [customerName, setCustomerName] = useState<string>('')
+
   // Separate state for lens names (what users see) vs codes (what gets stored in VCA)
   const [lensNames, setLensNames] = useState<{right: string, left: string}>({
     right: '',
@@ -51,6 +55,18 @@ export default function ImageExtractorForm({
   const [tintCodeSuggestions, setTintCodeSuggestions] = useState<any[]>([])
   const [coatingCodeSuggestions, setCoatingCodeSuggestions] = useState<any[]>([])
 
+  // Dropdown state for all available values
+  const [allCustomers, setAllCustomers] = useState<any[]>([])
+  const [allLensCodes, setAllLensCodes] = useState<any[]>([])
+  const [allTintCodes, setAllTintCodes] = useState<any[]>([])
+  const [allCoatingCodes, setAllCoatingCodes] = useState<any[]>([])
+
+  // Show dropdown state
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false)
+  const [showLensDropdown, setShowLensDropdown] = useState(false)
+  const [showTintDropdown, setShowTintDropdown] = useState(false)
+  const [showCoatingDropdown, setShowCoatingDropdown] = useState(false)
+
   // Helper function to parse VCA format (R;L) into separate values
   const parseVCAValue = (vcaValue: string | undefined) => {
     if (!vcaValue) return { right: '', left: '' }
@@ -68,9 +84,11 @@ export default function ImageExtractorForm({
   }
 
   // Debounced customer search function
-  const debouncedCustomerSearch = useCallback(async (value: string) => {
-    if (!value || value.trim().length < 2) {
+  const debouncedCustomerSearch = useCallback(async (searchValue: string, searchType: 'code' | 'name' | 'combined' = 'combined') => {
+    if (!searchValue || searchValue.trim().length < 1) {
       setCustomerSuggestions([])
+      setAllCustomers([])
+      setShowCustomerDropdown(false)
       return
     }
 
@@ -78,19 +96,27 @@ export default function ImageExtractorForm({
       const response = await fetch('/api/match-customer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: value })
+        body: JSON.stringify({ name: searchValue })
       })
       
       if (response.ok) {
         const result = await response.json()
         
+        // Set all customers for dropdown
+        setAllCustomers(result.allCustomers || [])
+        setShowCustomerDropdown(true)
+        
         if (result.exactMatch && result.matched && result.code) {
-          // Auto-fill only on exact match
-          const formattedShopNumber = `${result.code}|${result.customer.name}`
+          // Auto-fill only on exact match - update both fields
+          setCustomerCode(result.customer.code || '')
+          setCustomerName(result.customer.name || '')
+          
+          // Update the combined SHOPNUMBER for VCA compatibility
+          const formattedShopNumber = `${result.customer.code}|${result.customer.name}`
           setFormData((prev: any) => ({
             ...prev,
             SHOPNUMBER: formattedShopNumber,
-            originalCustomerName: value,
+            originalCustomerName: searchValue,
             customerMatchInfo: {
               exactMatch: result.exactMatch,
               fuzzyMatch: result.fuzzyMatch,
@@ -113,13 +139,17 @@ export default function ImageExtractorForm({
     } catch (error) {
       console.error('Error matching customer:', error)
       setCustomerSuggestions([])
+      setAllCustomers([])
+      setShowCustomerDropdown(false)
     }
   }, [])
 
   // Debounced lens code search function (updated to search by name)
   const debouncedLensCodeSearch = useCallback(async (value: string) => {
-    if (!value || value.trim().length < 2) {
+    if (!value || value.trim().length < 1) {
       setLensCodeSuggestions([])
+      setAllLensCodes([])
+      setShowLensDropdown(false)
       return
     }
 
@@ -132,6 +162,10 @@ export default function ImageExtractorForm({
       
       if (response.ok) {
         const result = await response.json()
+        
+        // Set all lens codes for dropdown
+        setAllLensCodes(result.allLensCodes || [])
+        setShowLensDropdown(true)
         
         if (result.exactMatch && result.matched && result.code) {
           // Auto-fill only on exact match - store code but keep the name displayed
@@ -158,18 +192,22 @@ export default function ImageExtractorForm({
     } catch (error) {
       console.error('Error matching lens code:', error)
       setLensCodeSuggestions([])
+      setAllLensCodes([])
+      setShowLensDropdown(false)
     }
   }, [])
 
   // Debounced tint code search function
   const debouncedTintCodeSearch = useCallback(async (value: string) => {
-    if (!value || value.trim().length < 2) {
+    if (!value || value.trim().length < 1) {
       setTintCodeSuggestions([])
+      setAllTintCodes([])
+      setShowTintDropdown(false)
       return
     }
 
     try {
-      const response = await fetch('/api/match-lens-code', {
+      const response = await fetch('/api/match-tint-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: value })
@@ -177,6 +215,10 @@ export default function ImageExtractorForm({
       
       if (response.ok) {
         const result = await response.json()
+        
+        // Set all tint codes for dropdown
+        setAllTintCodes(result.allTintCodes || [])
+        setShowTintDropdown(true)
         
         if (result.exactMatch && result.matched && result.code) {
           // Auto-fill only on exact match
@@ -186,7 +228,7 @@ export default function ImageExtractorForm({
             originalTintCode: value,
             tintCodeMatchInfo: {
               exactMatch: result.exactMatch,
-              tintCode: result.lensCode
+              tintCode: result.tintCode
             }
           }))
           setTintCodeSuggestions(result.suggestions || [])
@@ -203,18 +245,22 @@ export default function ImageExtractorForm({
     } catch (error) {
       console.error('Error matching tint code:', error)
       setTintCodeSuggestions([])
+      setAllTintCodes([])
+      setShowTintDropdown(false)
     }
   }, [])
 
   // Debounced coating code search function
   const debouncedCoatingCodeSearch = useCallback(async (value: string) => {
-    if (!value || value.trim().length < 2) {
+    if (!value || value.trim().length < 1) {
       setCoatingCodeSuggestions([])
+      setAllCoatingCodes([])
+      setShowCoatingDropdown(false)
       return
     }
 
     try {
-      const response = await fetch('/api/match-lens-code', {
+      const response = await fetch('/api/match-coating-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: value })
@@ -222,6 +268,10 @@ export default function ImageExtractorForm({
       
       if (response.ok) {
         const result = await response.json()
+        
+        // Set all coating codes for dropdown
+        setAllCoatingCodes(result.allCoatingCodes || [])
+        setShowCoatingDropdown(true)
         
         if (result.exactMatch && result.matched && result.code) {
           // Auto-fill only on exact match
@@ -231,7 +281,7 @@ export default function ImageExtractorForm({
             originalCoatingCode: value,
             coatingCodeMatchInfo: {
               exactMatch: result.exactMatch,
-              coatingCode: result.lensCode
+              coatingCode: result.coatingCode
             }
           }))
           setCoatingCodeSuggestions(result.suggestions || [])
@@ -248,11 +298,18 @@ export default function ImageExtractorForm({
     } catch (error) {
       console.error('Error matching coating code:', error)
       setCoatingCodeSuggestions([])
+      setAllCoatingCodes([])
+      setShowCoatingDropdown(false)
     }
   }, [])
 
   // Helper function to select a suggestion
   const selectCustomerSuggestion = (suggestion: any) => {
+    // Update both separate fields
+    setCustomerCode(suggestion.code || '')
+    setCustomerName(suggestion.name || '')
+    
+    // Update the combined SHOPNUMBER for VCA compatibility
     const formattedShopNumber = `${suggestion.code}|${suggestion.name}`
     setFormData((prev: any) => ({
       ...prev,
@@ -375,7 +432,47 @@ export default function ImageExtractorForm({
           
           return newLensNames
         })
+        
+        // Trigger lens code matching for extracted lens codes
+        if (parsedLensCode.right) {
+          setTimeout(() => {
+            performLensCodeSearch(parsedLensCode.right)
+          }, 500)
+        }
       }
+
+      // Trigger customer matching if SHOPNUMBER exists
+      if (orderData.SHOPNUMBER) {
+        // Split SHOPNUMBER into code and name if it contains |
+        if (orderData.SHOPNUMBER.includes('|')) {
+          const [code, ...nameParts] = orderData.SHOPNUMBER.split('|')
+          setCustomerCode(code || '')
+          setCustomerName(nameParts.join('|') || '') // Rejoin in case name contains |
+        } else {
+          // If no | separator, treat as customer name
+          setCustomerCode('')
+          setCustomerName(orderData.SHOPNUMBER || '')
+        }
+        
+        setTimeout(() => {
+          debouncedCustomerSearch(orderData.SHOPNUMBER)
+        }, 100)
+      }
+
+      // Trigger tint code matching if TINT exists
+      if (orderData.TINT) {
+        setTimeout(() => {
+          debouncedTintCodeSearch(orderData.TINT)
+        }, 300)
+      }
+
+      // Trigger coating code matching if ACOAT exists
+      if (orderData.ACOAT) {
+        setTimeout(() => {
+          debouncedCoatingCodeSearch(orderData.ACOAT)
+        }, 400)
+      }
+
     } else if (Object.keys(credentialsFromCache).length > 0) {
       // Apply cached credentials even if no orderData
       setFormData((prevData: any) => {
@@ -503,6 +600,62 @@ export default function ImageExtractorForm({
     }))
   }
 
+  // Handle customer code changes
+  const handleCustomerCodeChange = (value: string) => {
+    setCustomerCode(value)
+    
+    // Clear existing timer
+    if (customerSearchTimer) {
+      clearTimeout(customerSearchTimer)
+    }
+
+    // Update combined SHOPNUMBER
+    const combinedValue = value && customerName ? `${value}|${customerName}` : value || customerName
+    setFormData((prev: any) => ({
+      ...prev,
+      SHOPNUMBER: combinedValue,
+      customerMatchInfo: null,
+      originalCustomerName: null
+    }))
+    setCustomerSuggestions([])
+
+    // Trigger search if we have a meaningful value
+    if (value && value.trim().length >= 1) {
+      const newTimer = setTimeout(() => {
+        debouncedCustomerSearch(value, 'code')
+      }, 1000)
+      setCustomerSearchTimer(newTimer)
+    }
+  }
+
+  // Handle customer name changes
+  const handleCustomerNameChange = (value: string) => {
+    setCustomerName(value)
+    
+    // Clear existing timer
+    if (customerSearchTimer) {
+      clearTimeout(customerSearchTimer)
+    }
+
+    // Update combined SHOPNUMBER
+    const combinedValue = customerCode && value ? `${customerCode}|${value}` : customerCode || value
+    setFormData((prev: any) => ({
+      ...prev,
+      SHOPNUMBER: combinedValue,
+      customerMatchInfo: null,
+      originalCustomerName: null
+    }))
+    setCustomerSuggestions([])
+
+    // Trigger search if we have a meaningful value
+    if (value && value.trim().length >= 1) {
+      const newTimer = setTimeout(() => {
+        debouncedCustomerSearch(value, 'name')
+      }, 1000)
+      setCustomerSearchTimer(newTimer)
+    }
+  }
+
   // Handle lens name field changes (new function)
   const handleLensNameChange = (eye: 'right' | 'left', value: string) => {
     // Clear existing timer and suggestions
@@ -599,28 +752,67 @@ export default function ImageExtractorForm({
       if (tintCodeSearchTimer) clearTimeout(tintCodeSearchTimer)
       if (coatingCodeSearchTimer) clearTimeout(coatingCodeSearchTimer)
       
-      // Clear all suggestions on unmount
+      // Clear all suggestions and dropdowns on unmount
       setCustomerSuggestions([])
       setLensCodeSuggestions([])
       setTintCodeSuggestions([])
       setCoatingCodeSuggestions([])
+      setAllCustomers([])
+      setAllLensCodes([])
+      setAllTintCodes([])
+      setAllCoatingCodes([])
+      setShowCustomerDropdown(false)
+      setShowLensDropdown(false)
+      setShowTintDropdown(false)
+      setShowCoatingDropdown(false)
+      
+      // Clear customer fields
+      setCustomerCode('')
+      setCustomerName('')
     }
   }, []) // Empty dependency array - only run on unmount
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
+    // Ensure SHOPNUMBER is properly combined from the separate fields
+    let combinedShopNumber = formData.SHOPNUMBER
+    if (customerCode || customerName) {
+      combinedShopNumber = customerCode && customerName 
+        ? `${customerCode}|${customerName}` 
+        : customerCode || customerName
+    }
+    
     // Submit the order data
     const submissionData = {
       ...formData,
+      // Update SHOPNUMBER with the combined value
+      SHOPNUMBER: combinedShopNumber,
       // CLIENT field should contain the shop/customer information from SHOPNUMBER
       // DO NOT change this mapping - it's critical for the SOAP order submission
       // The SOAP service expects CLIENT to contain the actual customer/shop name
-      CLIENT: formData.SHOPNUMBER || formData.CLIENT, // Use SHOPNUMBER as CLIENT for SOAP order
+      CLIENT: combinedShopNumber || formData.CLIENT, // Use combined SHOPNUMBER as CLIENT for SOAP order
     }
     
     console.log('📤 Form submitting with data:', submissionData)
+    console.log('🔍 Customer Code:', customerCode)
+    console.log('🔍 Customer Name:', customerName)
+    console.log('🔍 Combined SHOPNUMBER:', combinedShopNumber)
     onSubmit(submissionData)
+  }
+
+  // Handle Enter key navigation
+  const handleKeyDown = (e: React.KeyboardEvent, nextFieldId?: string) => {
+    if (e.key === 'Enter') {
+      e.preventDefault() // Prevent form submission
+      
+      if (nextFieldId) {
+        const nextField = document.getElementById(nextFieldId)
+        if (nextField) {
+          nextField.focus()
+        }
+      }
+    }
   }
 
   if (!orderData && !Object.keys(formData).length) {
@@ -643,7 +835,15 @@ export default function ImageExtractorForm({
     <div className="h-full flex flex-col bg-white">
       
       <div className="flex-1 min-h-0">
-        <form onSubmit={handleSubmit} className="h-full flex flex-col">
+        <form 
+          onSubmit={handleSubmit} 
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && e.target !== e.currentTarget) {
+              e.preventDefault() // Prevent form submission on Enter
+            }
+          }}
+          className="h-full flex flex-col"
+        >
           {/* Submit Button at Top */}
           <div className="flex-shrink-0 p-4 border-b border-gray-200">
             <Button 
@@ -667,6 +867,7 @@ export default function ImageExtractorForm({
                       id="rxoffice_username"
                       value={formData.rxoffice_username || ""}
                       onChange={(e) => handleInputChange('rxoffice_username', e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(e, 'rxoffice_password')}
                       placeholder="RxOffice username"
                       className="h-8 text-sm"
                     />
@@ -678,6 +879,7 @@ export default function ImageExtractorForm({
                       type="password"
                       value={formData.rxoffice_password || ""}
                       onChange={(e) => handleInputChange('rxoffice_password', e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(e, 'JOB')}
                       placeholder="RxOffice password"
                       className="h-8 text-sm"
                     />
@@ -695,6 +897,7 @@ export default function ImageExtractorForm({
                       id="JOB"
                       value={formData.JOB || ""}
                       onChange={(e) => handleInputChange('JOB', e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(e, 'ShopNumber')}
                       placeholder="Order Number"
                       className="h-8 text-sm"
                     />
@@ -705,6 +908,7 @@ export default function ImageExtractorForm({
                       id="ShopNumber"
                       value={formData.ShopNumber || ""}
                       onChange={(e) => handleInputChange('ShopNumber', e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(e, 'CLIENT')}
                       placeholder="ERP Query Number"
                       className="h-8 text-sm"
                     />
@@ -715,6 +919,7 @@ export default function ImageExtractorForm({
                       id="CLIENT"
                       value={formData.CLIENT || ""}
                       onChange={(e) => handleInputChange('CLIENT', e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(e, 'SHOPNUMBER')}
                       placeholder="Full name"
                       className="h-8 text-sm"
                     />
@@ -722,36 +927,99 @@ export default function ImageExtractorForm({
                 </div>
                 
                 <div className="mt-3">
-                  <Label htmlFor="SHOPNUMBER" className="text-xs">Customer/Shop Name</Label>
-                  <Input
-                    id="SHOPNUMBER"
-                    value={formData.SHOPNUMBER || ""}
-                    onChange={(e) => handleInputChange('SHOPNUMBER', e.target.value)}
-                    placeholder="Customer or Shop Name"
-                    className="h-8 text-sm"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">💡 Start typing to see automatic suggestions from database</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="customer-code" className="text-xs">Customer Code</Label>
+                      <div className="relative">
+                        <Input
+                          id="customer-code"
+                          value={customerCode}
+                          onChange={(e) => handleCustomerCodeChange(e.target.value)}
+                          onFocus={() => setShowCustomerDropdown(true)}
+                          onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 200)}
+                          onKeyDown={(e) => handleKeyDown(e, 'customer-name')}
+                          placeholder="Customer Code"
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label htmlFor="customer-name" className="text-xs">Customer Name</Label>
+                      <div className="relative">
+                        <Input
+                          id="customer-name"
+                          value={customerName}
+                          onChange={(e) => handleCustomerNameChange(e.target.value)}
+                          onFocus={() => setShowCustomerDropdown(true)}
+                          onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 200)}
+                          onKeyDown={(e) => handleKeyDown(e, 'lens-name-search')}
+                          placeholder="Customer or Shop Name"
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <p className="text-xs text-gray-500 mt-1">💡 Start typing in either field to see automatic suggestions from database</p>
+                  
                   {formData.customerMatchInfo && formData.customerMatchInfo.exactMatch && (
                     <p className="text-xs text-green-600 mt-1">
                       ✅ Exact match: {formData.customerMatchInfo.customerName}
                     </p>
                   )}
-                  {customerSuggestions.length > 0 && (
-                    <div className="mt-1 p-2 bg-gray-50 rounded text-xs">
-                      <p className="text-gray-600 mb-1">💡 Suggestions:</p>
-                      <div className="space-y-1">
-                        {customerSuggestions.map((suggestion, index) => (
-                          <button
-                            key={index}
-                            type="button"
-                            onClick={() => selectCustomerSuggestion(suggestion)}
-                            className="block w-full text-left p-1 hover:bg-blue-100 rounded text-blue-700"
-                          >
-                            {suggestion.name} ({suggestion.code})
-                            {suggestion.city && <span className="text-gray-500"> - {suggestion.city}</span>}
-                          </button>
-                        ))}
-                      </div>
+                  
+                  {/* Dropdown with all customers and highlighted matches */}
+                  {showCustomerDropdown && (allCustomers.length > 0 || customerSuggestions.length > 0) && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                      {/* Matched suggestions first */}
+                      {customerSuggestions.length > 0 && (
+                        <div>
+                          <div className="px-3 py-2 text-xs font-medium text-gray-500 bg-blue-50 border-b">
+                            💡 Best Matches ({customerSuggestions.length})
+                          </div>
+                          {customerSuggestions.map((suggestion, index) => (
+                            <button
+                              key={`suggestion-${index}`}
+                              type="button"
+                              onClick={() => selectCustomerSuggestion(suggestion)}
+                              className="w-full text-left px-3 py-2 hover:bg-blue-100 border-b border-gray-100 text-sm"
+                            >
+                              <div className="font-medium text-blue-700">{suggestion.name}</div>
+                              <div className="text-xs text-gray-500">
+                                {suggestion.code} {suggestion.city && `• ${suggestion.city}`}
+                                {suggestion.matchPercentage && ` • ${suggestion.matchPercentage.toFixed(0)}% match`}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {/* All customers dropdown */}
+                      {allCustomers.length > 0 && (
+                        <div>
+                          <div className="px-3 py-2 text-xs font-medium text-gray-500 bg-gray-50 border-b">
+                            📋 All Customers ({allCustomers.length})
+                          </div>
+                          {allCustomers.slice(0, 20).map((customer, index) => (
+                            <button
+                              key={`all-${index}`}
+                              type="button"
+                              onClick={() => selectCustomerSuggestion(customer)}
+                              className="w-full text-left px-3 py-2 hover:bg-gray-100 border-b border-gray-100 text-sm"
+                            >
+                              <div className="font-medium">{customer.name}</div>
+                              <div className="text-xs text-gray-500">
+                                {customer.code} {customer.city && `• ${customer.city}`}
+                              </div>
+                            </button>
+                          ))}
+                          {allCustomers.length > 20 && (
+                            <div className="px-3 py-2 text-xs text-gray-500 text-center">
+                              ... and {allCustomers.length - 20} more
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -764,37 +1032,80 @@ export default function ImageExtractorForm({
                 {/* Lens Name Search Field */}
                 <div className="mb-3">
                   <Label htmlFor="lens-name-search" className="text-xs">Lens Name</Label>
-                  <Input
-                    id="lens-name-search"
-                    value={lensNames.right || lensNames.left || ""}
-                    onChange={(e) => handleLensNameChange('right', e.target.value)}
-                    placeholder="Search lens name (e.g., Progressive Standard)"
-                    className="h-8 text-sm"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">💡 Start typing to see automatic suggestions from lens database</p>
-                  {formData.lensCodeMatchInfo && formData.lensCodeMatchInfo.exactMatch && (
-                    <p className="text-xs text-green-600 mt-1">
-                      ✅ Exact match: {formData.lensCodeMatchInfo.lensCode.retail_name || formData.lensCodeMatchInfo.lensCode.retail_code} (synced to both eyes)
-                    </p>
-                  )}
-                  {lensCodeSuggestions.length > 0 && (
-                    <div className="mt-1 p-2 bg-gray-50 rounded text-xs">
-                      <p className="text-gray-600 mb-1">💡 Lens Name Suggestions:</p>
-                      <div className="space-y-1">
-                        {lensCodeSuggestions.map((suggestion, index) => (
-                          <button
-                            key={index}
-                            type="button"
-                            onClick={() => selectLensCodeSuggestion(suggestion)}
-                            className="block w-full text-left p-1 hover:bg-blue-100 rounded text-blue-700"
-                          >
-                            {suggestion.retail_name}
-                            <span className="text-gray-500 text-xs"> ({suggestion.retail_code} - {suggestion.source})</span>
-                          </button>
-                        ))}
+                  <div className="relative">
+                    <Input
+                      id="lens-name-search"
+                      value={lensNames.right || lensNames.left || ""}
+                      onChange={(e) => handleLensNameChange('right', e.target.value)}
+                      onFocus={() => setShowLensDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowLensDropdown(false), 200)}
+                      onKeyDown={(e) => handleKeyDown(e, 'right-lens-code')}
+                      placeholder="Search lens name (e.g., Progressive Standard)"
+                      className="h-8 text-sm"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">💡 Start typing to see automatic suggestions from lens database</p>
+                    
+                    {formData.lensCodeMatchInfo && formData.lensCodeMatchInfo.exactMatch && (
+                      <p className="text-xs text-green-600 mt-1">
+                        ✅ Exact match: {formData.lensCodeMatchInfo.lensCode.retail_name || formData.lensCodeMatchInfo.lensCode.retail_code} (synced to both eyes)
+                      </p>
+                    )}
+                    
+                    {/* Dropdown with all lens codes and highlighted matches */}
+                    {showLensDropdown && (allLensCodes.length > 0 || lensCodeSuggestions.length > 0) && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                        {/* Matched suggestions first */}
+                        {lensCodeSuggestions.length > 0 && (
+                          <div>
+                            <div className="px-3 py-2 text-xs font-medium text-gray-500 bg-blue-50 border-b">
+                              💡 Best Matches ({lensCodeSuggestions.length})
+                            </div>
+                            {lensCodeSuggestions.map((suggestion, index) => (
+                              <button
+                                key={`lens-suggestion-${index}`}
+                                type="button"
+                                onClick={() => selectLensCodeSuggestion(suggestion)}
+                                className="w-full text-left px-3 py-2 hover:bg-blue-100 border-b border-gray-100 text-sm"
+                              >
+                                <div className="font-medium text-blue-700">{suggestion.retail_name}</div>
+                                <div className="text-xs text-gray-500">
+                                  {suggestion.retail_code} • {suggestion.source}
+                                  {suggestion.matchPercentage && ` • ${suggestion.matchPercentage.toFixed(0)}% match`}
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {/* All lens codes dropdown */}
+                        {allLensCodes.length > 0 && (
+                          <div>
+                            <div className="px-3 py-2 text-xs font-medium text-gray-500 bg-gray-50 border-b">
+                              📋 All Lens Codes ({allLensCodes.length})
+                            </div>
+                            {allLensCodes.slice(0, 20).map((lens, index) => (
+                              <button
+                                key={`lens-all-${index}`}
+                                type="button"
+                                onClick={() => selectLensCodeSuggestion(lens)}
+                                className="w-full text-left px-3 py-2 hover:bg-gray-100 border-b border-gray-100 text-sm"
+                              >
+                                <div className="font-medium">{lens.retail_name}</div>
+                                <div className="text-xs text-gray-500">
+                                  {lens.retail_code} • {lens.source}
+                                </div>
+                              </button>
+                            ))}
+                            {allLensCodes.length > 20 && (
+                              <div className="px-3 py-2 text-xs text-gray-500 text-center">
+                                ... and {allLensCodes.length - 20} more
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
                 
                 <div className="bg-gray-50 rounded-lg p-3">
@@ -817,40 +1128,61 @@ export default function ImageExtractorForm({
                     </div>
                     <div>
                       <Input
+                        id="right-lens-code"
                         value={parseVCAValue(formData.LNAM).right}
                         onChange={(e) => handleEyeFieldChange('LNAM', 'right', e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, 'right-sph')}
                         placeholder="OVMDXV"
                         className="h-7 text-center text-xs"
                       />
                     </div>
                     <div>
                       <Input
+                        id="right-sph"
+                        type="number"
+                        step="0.25"
                         value={parseVCAValue(formData.SPH).right}
                         onChange={(e) => handleEyeFieldChange('SPH', 'right', e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, 'right-cyl')}
                         placeholder="-1.75"
                         className="h-7 text-center text-xs"
                       />
                     </div>
                     <div>
                       <Input
+                        id="right-cyl"
+                        type="number"
+                        step="0.25"
                         value={parseVCAValue(formData.CYL).right}
                         onChange={(e) => handleEyeFieldChange('CYL', 'right', e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, 'right-axis')}
                         placeholder="-0.5"
                         className="h-7 text-center text-xs"
                       />
                     </div>
                     <div>
                       <Input
+                        id="right-axis"
+                        type="number"
+                        step="1"
+                        min="0"
+                        max="180"
                         value={parseVCAValue(formData.AX).right}
                         onChange={(e) => handleEyeFieldChange('AX', 'right', e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, 'right-add')}
                         placeholder="45"
                         className="h-7 text-center text-xs"
                       />
                     </div>
                     <div>
                       <Input
+                        id="right-add"
+                        type="number"
+                        step="0.25"
+                        min="0"
                         value={parseVCAValue(formData.ADD).right}
                         onChange={(e) => handleEyeFieldChange('ADD', 'right', e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, 'left-lens-code')}
                         placeholder="1.75"
                         className="h-7 text-center text-xs"
                       />
@@ -864,40 +1196,61 @@ export default function ImageExtractorForm({
                     </div>
                     <div>
                       <Input
+                        id="left-lens-code"
                         value={parseVCAValue(formData.LNAM).left}
                         onChange={(e) => handleEyeFieldChange('LNAM', 'left', e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, 'left-sph')}
                         placeholder="OVMDXV"
                         className="h-7 text-center text-xs"
                       />
                     </div>
                     <div>
                       <Input
+                        id="left-sph"
+                        type="number"
+                        step="0.25"
                         value={parseVCAValue(formData.SPH).left}
                         onChange={(e) => handleEyeFieldChange('SPH', 'left', e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, 'left-cyl')}
                         placeholder="-1.75"
                         className="h-7 text-center text-xs"
                       />
                     </div>
                     <div>
                       <Input
+                        id="left-cyl"
+                        type="number"
+                        step="0.25"
                         value={parseVCAValue(formData.CYL).left}
                         onChange={(e) => handleEyeFieldChange('CYL', 'left', e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, 'left-axis')}
                         placeholder="-0.25"
                         className="h-7 text-center text-xs"
                       />
                     </div>
                     <div>
                       <Input
+                        id="left-axis"
+                        type="number"
+                        step="1"
+                        min="0"
+                        max="180"
                         value={parseVCAValue(formData.AX).left}
                         onChange={(e) => handleEyeFieldChange('AX', 'left', e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, 'left-add')}
                         placeholder="180"
                         className="h-7 text-center text-xs"
                       />
                     </div>
                     <div>
                       <Input
+                        id="left-add"
+                        type="number"
+                        step="0.25"
+                        min="0"
                         value={parseVCAValue(formData.ADD).left}
                         onChange={(e) => handleEyeFieldChange('ADD', 'left', e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, 'right-pd')}
                         placeholder="1.75"
                         className="h-7 text-center text-xs"
                       />
@@ -929,56 +1282,91 @@ export default function ImageExtractorForm({
                     </div>
                     <div>
                       <Input
+                        id="right-pd"
+                        type="number"
+                        step="0.5"
+                        min="0"
                         value={parseVCAValue(formData.IPD).right}
                         onChange={(e) => handleEyeFieldChange('IPD', 'right', e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, 'right-npd')}
                         placeholder="28.5"
                         className="h-6 text-center text-xs"
                       />
                     </div>
                     <div>
                       <Input
+                        id="right-npd"
+                        type="number"
+                        step="0.5"
+                        min="0"
                         value={parseVCAValue(formData.NPD).right}
                         onChange={(e) => handleEyeFieldChange('NPD', 'right', e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, 'right-ht')}
                         placeholder=""
                         className="h-6 text-center text-xs"
                       />
                     </div>
                     <div>
                       <Input
+                        id="right-ht"
+                        type="number"
+                        step="0.1"
+                        min="0"
                         value={parseVCAValue(formData.VBOX).right}
                         onChange={(e) => handleEyeFieldChange('VBOX', 'right', e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, 'right-a')}
                         placeholder="29"
                         className="h-6 text-center text-xs"
                       />
                     </div>
                     <div>
                       <Input
+                        id="right-a"
+                        type="number"
+                        step="0.01"
+                        min="0"
                         value={parseVCAValue(formData.HBOX).right}
                         onChange={(e) => handleEyeFieldChange('HBOX', 'right', e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, 'right-b')}
                         placeholder="50.69"
                         className="h-6 text-center text-xs"
                       />
                     </div>
                     <div>
                       <Input
+                        id="right-b"
+                        type="number"
+                        step="0.01"
+                        min="0"
                         value={parseVCAValue(formData.SEGHT).right}
                         onChange={(e) => handleEyeFieldChange('SEGHT', 'right', e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, 'dbl')}
                         placeholder="44.83"
                         className="h-6 text-center text-xs"
                       />
                     </div>
                     <div>
                       <Input
+                        id="dbl"
+                        type="number"
+                        step="0.01"
+                        min="0"
                         value={formData.DBL || ""}
                         onChange={(e) => handleInputChange('DBL', e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, 'right-ed')}
                         placeholder="17.74"
                         className="h-6 text-center text-xs"
                       />
                     </div>
                     <div>
                       <Input
+                        id="right-ed"
+                        type="number"
+                        step="0.1"
+                        min="0"
                         value={parseVCAValue(formData.FED).right}
                         onChange={(e) => handleEyeFieldChange('FED', 'right', e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, 'left-pd')}
                         placeholder="54.7"
                         className="h-6 text-center text-xs"
                       />
@@ -992,40 +1380,65 @@ export default function ImageExtractorForm({
                     </div>
                     <div>
                       <Input
+                        id="left-pd"
+                        type="number"
+                        step="0.5"
+                        min="0"
                         value={parseVCAValue(formData.IPD).left}
                         onChange={(e) => handleEyeFieldChange('IPD', 'left', e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, 'left-npd')}
                         placeholder="28.5"
                         className="h-6 text-center text-xs"
                       />
                     </div>
                     <div>
                       <Input
+                        id="left-npd"
+                        type="number"
+                        step="0.5"
+                        min="0"
                         value={parseVCAValue(formData.NPD).left}
                         onChange={(e) => handleEyeFieldChange('NPD', 'left', e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, 'left-ht')}
                         placeholder=""
                         className="h-6 text-center text-xs"
                       />
                     </div>
                     <div>
                       <Input
+                        id="left-ht"
+                        type="number"
+                        step="0.1"
+                        min="0"
                         value={parseVCAValue(formData.VBOX).left}
                         onChange={(e) => handleEyeFieldChange('VBOX', 'left', e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, 'left-a')}
                         placeholder="29"
                         className="h-6 text-center text-xs"
                       />
                     </div>
                     <div>
                       <Input
+                        id="left-a"
+                        type="number"
+                        step="0.01"
+                        min="0"
                         value={parseVCAValue(formData.HBOX).left}
                         onChange={(e) => handleEyeFieldChange('HBOX', 'left', e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, 'left-b')}
                         placeholder="50.69"
                         className="h-6 text-center text-xs"
                       />
                     </div>
                     <div>
                       <Input
+                        id="left-b"
+                        type="number"
+                        step="0.01"
+                        min="0"
                         value={parseVCAValue(formData.SEGHT).left}
                         onChange={(e) => handleEyeFieldChange('SEGHT', 'left', e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, 'left-ed')}
                         placeholder="44.83"
                         className="h-6 text-center text-xs"
                       />
@@ -1040,8 +1453,13 @@ export default function ImageExtractorForm({
                     </div>
                     <div>
                       <Input
+                        id="left-ed"
+                        type="number"
+                        step="0.1"
+                        min="0"
                         value={parseVCAValue(formData.FED).left}
                         onChange={(e) => handleEyeFieldChange('FED', 'left', e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, 'ACOAT')}
                         placeholder="54.7"
                         className="h-6 text-center text-xs"
                       />
@@ -1056,69 +1474,153 @@ export default function ImageExtractorForm({
                 <div className="grid grid-cols-3 gap-3 mb-3">
                 <div>
                     <Label htmlFor="ACOAT" className="text-xs">Coating Code</Label>
-                    <Input
-                      id="ACOAT"
-                      value={formData.ACOAT || ""}
-                      onChange={(e) => handleInputChange('ACOAT', e.target.value)}
-                      placeholder="PT GREEN"
-                      className="h-8 text-sm"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">💡 Auto-suggests from database</p>
-                    {formData.coatingCodeMatchInfo && formData.coatingCodeMatchInfo.exactMatch && (
-                      <p className="text-xs text-green-600 mt-1">
-                        ✅ Exact match: {formData.coatingCodeMatchInfo.coatingCode.retail_name || formData.coatingCodeMatchInfo.coatingCode.name || 'Matched'}
-                      </p>
-                    )}
-                    {coatingCodeSuggestions.length > 0 && (
-                      <div className="mt-1 p-2 bg-gray-50 rounded text-xs">
-                        <p className="text-gray-600 mb-1">💡 Coating Suggestions:</p>
-                        <div className="space-y-1">
-                          {coatingCodeSuggestions.map((suggestion, index) => (
-                            <button
-                              key={index}
-                              type="button"
-                              onClick={() => selectCoatingCodeSuggestion(suggestion)}
-                              className="block w-full text-left p-1 hover:bg-blue-100 rounded text-blue-700"
-                            >
-                              {suggestion.retail_code} - {suggestion.retail_name}
-                            </button>
-                          ))}
+                    <div className="relative">
+                      <Input
+                        id="ACOAT"
+                        value={formData.ACOAT || ""}
+                        onChange={(e) => handleInputChange('ACOAT', e.target.value)}
+                        onFocus={() => setShowCoatingDropdown(true)}
+                        onBlur={() => setTimeout(() => setShowCoatingDropdown(false), 200)}
+                        onKeyDown={(e) => handleKeyDown(e, 'TINT')}
+                        placeholder="PT GREEN"
+                        className="h-8 text-sm"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">💡 Auto-suggests from database</p>
+                      
+                      {formData.coatingCodeMatchInfo && formData.coatingCodeMatchInfo.exactMatch && (
+                        <p className="text-xs text-green-600 mt-1">
+                          ✅ Exact match: {formData.coatingCodeMatchInfo.coatingCode.retail_name || formData.coatingCodeMatchInfo.coatingCode.name || 'Matched'}
+                        </p>
+                      )}
+                      
+                      {/* Dropdown with all coating codes and highlighted matches */}
+                      {showCoatingDropdown && (allCoatingCodes.length > 0 || coatingCodeSuggestions.length > 0) && (
+                        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                          {/* Matched suggestions first */}
+                          {coatingCodeSuggestions.length > 0 && (
+                            <div>
+                              <div className="px-3 py-2 text-xs font-medium text-gray-500 bg-blue-50 border-b">
+                                💡 Best Matches ({coatingCodeSuggestions.length})
+                              </div>
+                              {coatingCodeSuggestions.map((suggestion, index) => (
+                                <button
+                                  key={`coating-suggestion-${index}`}
+                                  type="button"
+                                  onClick={() => selectCoatingCodeSuggestion(suggestion)}
+                                  className="w-full text-left px-3 py-2 hover:bg-blue-100 border-b border-gray-100 text-sm"
+                                >
+                                  <div className="font-medium text-blue-700">{suggestion.retail_code}</div>
+                                  <div className="text-xs text-gray-500">
+                                    {suggestion.retail_name}
+                                    {suggestion.matchPercentage && ` • ${suggestion.matchPercentage.toFixed(0)}% match`}
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          
+                          {/* All coating codes dropdown */}
+                          {allCoatingCodes.length > 0 && (
+                            <div>
+                              <div className="px-3 py-2 text-xs font-medium text-gray-500 bg-gray-50 border-b">
+                                📋 All Coating Codes ({allCoatingCodes.length})
+                              </div>
+                              {allCoatingCodes.slice(0, 15).map((coating, index) => (
+                                <button
+                                  key={`coating-all-${index}`}
+                                  type="button"
+                                  onClick={() => selectCoatingCodeSuggestion(coating)}
+                                  className="w-full text-left px-3 py-2 hover:bg-gray-100 border-b border-gray-100 text-sm"
+                                >
+                                  <div className="font-medium">{coating.retail_code}</div>
+                                  <div className="text-xs text-gray-500">{coating.retail_name}</div>
+                                </button>
+                              ))}
+                              {allCoatingCodes.length > 15 && (
+                                <div className="px-3 py-2 text-xs text-gray-500 text-center">
+                                  ... and {allCoatingCodes.length - 15} more
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                   <div>
                     <Label htmlFor="TINT" className="text-xs">Tint Code</Label>
-                    <Input
-                      id="TINT"
-                      value={formData.TINT || ""}
-                      onChange={(e) => handleInputChange('TINT', e.target.value)}
-                      placeholder="Tint"
-                      className="h-8 text-sm"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">💡 Auto-suggests from database</p>
-                    {formData.tintCodeMatchInfo && formData.tintCodeMatchInfo.exactMatch && (
-                      <p className="text-xs text-green-600 mt-1">
-                        ✅ Exact match: {formData.tintCodeMatchInfo.tintCode.retail_name || formData.tintCodeMatchInfo.tintCode.name || 'Matched'}
-                      </p>
-                    )}
-                    {tintCodeSuggestions.length > 0 && (
-                      <div className="mt-1 p-2 bg-gray-50 rounded text-xs">
-                        <p className="text-gray-600 mb-1">💡 Tint Suggestions:</p>
-                        <div className="space-y-1">
-                          {tintCodeSuggestions.map((suggestion, index) => (
-                            <button
-                              key={index}
-                              type="button"
-                              onClick={() => selectTintCodeSuggestion(suggestion)}
-                              className="block w-full text-left p-1 hover:bg-blue-100 rounded text-blue-700"
-                            >
-                              {suggestion.retail_code} - {suggestion.retail_name}
-                            </button>
-                          ))}
+                    <div className="relative">
+                      <Input
+                        id="TINT"
+                        value={formData.TINT || ""}
+                        onChange={(e) => handleInputChange('TINT', e.target.value)}
+                        onFocus={() => setShowTintDropdown(true)}
+                        onBlur={() => setTimeout(() => setShowTintDropdown(false), 200)}
+                        onKeyDown={(e) => handleKeyDown(e, 'COLOR')}
+                        placeholder="Tint"
+                        className="h-8 text-sm"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">💡 Auto-suggests from database</p>
+                      
+                      {formData.tintCodeMatchInfo && formData.tintCodeMatchInfo.exactMatch && (
+                        <p className="text-xs text-green-600 mt-1">
+                          ✅ Exact match: {formData.tintCodeMatchInfo.tintCode.retail_name || formData.tintCodeMatchInfo.tintCode.name || 'Matched'}
+                        </p>
+                      )}
+                      
+                      {/* Dropdown with all tint codes and highlighted matches */}
+                      {showTintDropdown && (allTintCodes.length > 0 || tintCodeSuggestions.length > 0) && (
+                        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                          {/* Matched suggestions first */}
+                          {tintCodeSuggestions.length > 0 && (
+                            <div>
+                              <div className="px-3 py-2 text-xs font-medium text-gray-500 bg-blue-50 border-b">
+                                💡 Best Matches ({tintCodeSuggestions.length})
+                              </div>
+                              {tintCodeSuggestions.map((suggestion, index) => (
+                                <button
+                                  key={`tint-suggestion-${index}`}
+                                  type="button"
+                                  onClick={() => selectTintCodeSuggestion(suggestion)}
+                                  className="w-full text-left px-3 py-2 hover:bg-blue-100 border-b border-gray-100 text-sm"
+                                >
+                                  <div className="font-medium text-blue-700">{suggestion.retail_code}</div>
+                                  <div className="text-xs text-gray-500">
+                                    {suggestion.retail_name}
+                                    {suggestion.matchPercentage && ` • ${suggestion.matchPercentage.toFixed(0)}% match`}
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          
+                          {/* All tint codes dropdown */}
+                          {allTintCodes.length > 0 && (
+                            <div>
+                              <div className="px-3 py-2 text-xs font-medium text-gray-500 bg-gray-50 border-b">
+                                📋 All Tint Codes ({allTintCodes.length})
+                              </div>
+                              {allTintCodes.slice(0, 15).map((tint, index) => (
+                                <button
+                                  key={`tint-all-${index}`}
+                                  type="button"
+                                  onClick={() => selectTintCodeSuggestion(tint)}
+                                  className="w-full text-left px-3 py-2 hover:bg-gray-100 border-b border-gray-100 text-sm"
+                                >
+                                  <div className="font-medium">{tint.retail_code}</div>
+                                  <div className="text-xs text-gray-500">{tint.retail_name}</div>
+                                </button>
+                              ))}
+                              {allTintCodes.length > 15 && (
+                                <div className="px-3 py-2 text-xs text-gray-500 text-center">
+                                  ... and {allTintCodes.length - 15} more
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                   <div>
                     <Label htmlFor="COLOR" className="text-xs">Color Code</Label>
@@ -1126,6 +1628,7 @@ export default function ImageExtractorForm({
                       id="COLOR"
                       value={formData.COLOR || ""}
                       onChange={(e) => handleInputChange('COLOR', e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(e, 'rxoffice_username')}
                       placeholder="Color"
                       className="h-8 text-sm"
                     />

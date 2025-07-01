@@ -110,7 +110,61 @@ export default function Home() {
       
       if (result.success && result.data) {
         console.log("Setting extracted order data:", result.data)
-        setExtractedOrder(result.data)
+        
+        // Auto-match tint and coating codes if they exist in the extracted data
+        let enhancedData = { ...result.data }
+        
+        // Auto-match tint code
+        if (result.data.TINT) {
+          try {
+            const tintResponse = await fetch("/api/match-tint-code", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ code: result.data.TINT })
+            })
+            
+            if (tintResponse.ok) {
+              const tintResult = await tintResponse.json()
+              if (tintResult.exactMatch && tintResult.matched) {
+                enhancedData.TINT = tintResult.code
+                enhancedData.tintCodeMatchInfo = {
+                  exactMatch: true,
+                  tintCode: tintResult.tintCode
+                }
+                console.log("✅ Auto-matched tint code:", tintResult.code)
+              }
+            }
+          } catch (tintError) {
+            console.warn("Failed to auto-match tint code:", tintError)
+          }
+        }
+        
+        // Auto-match coating code
+        if (result.data.ACOAT) {
+          try {
+            const coatingResponse = await fetch("/api/match-coating-code", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ code: result.data.ACOAT })
+            })
+            
+            if (coatingResponse.ok) {
+              const coatingResult = await coatingResponse.json()
+              if (coatingResult.exactMatch && coatingResult.matched) {
+                enhancedData.ACOAT = coatingResult.code
+                enhancedData.coatingCodeMatchInfo = {
+                  exactMatch: true,
+                  coatingCode: coatingResult.coatingCode
+                }
+                console.log("✅ Auto-matched coating code:", coatingResult.code)
+              }
+            }
+          } catch (coatingError) {
+            console.warn("Failed to auto-match coating code:", coatingError)
+          }
+        }
+        
+        setExtractedOrder(enhancedData)
         setAppState('form')
         
         toast.success("Image Processed Successfully!", {
@@ -177,8 +231,8 @@ export default function Home() {
           duration: 5000
         })
         
-        // Reset the app state
-        resetApp()
+        // Don't reset the app state - keep image and extraction data
+        // resetApp()
       } else {
         const errorMessage = result.error || result.message || "Failed to create order"
         setError(errorMessage)

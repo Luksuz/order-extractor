@@ -127,112 +127,147 @@ function findBestMatches(
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { code } = body
-    
+    const { code } = await request.json()
+
     if (!code || typeof code !== 'string') {
       return NextResponse.json(
-        { error: 'Lens code is required' },
+        { error: 'Code is required' },
         { status: 400 }
       )
     }
-    
-    console.log('🔍 Matching lens code:', code)
-    
-    // Normalize the search term for better matching
-    const normalizedSearchCode = code.trim()
-    
-    // Search in both rx_code and stock_code tables
-    const rxMatches = findBestMatches(normalizedSearchCode, mockRxCodes, 'rx_code')
-    const stockMatches = findBestMatches(normalizedSearchCode, mockStockCodes, 'stock_code')
-    
-    // Combine and sort all matches
-    const allMatches = [...rxMatches, ...stockMatches]
-      .sort((a, b) => b.similarity - a.similarity)
-    
-    console.log('🔍 All matches found:', allMatches.map(m => ({
-      name: m.record.retail_name,
-      code: m.record.retail_code,
-      similarity: m.similarity,
-      source: m.source
-    })))
-    
-    if (allMatches.length === 0) {
-      console.log('❌ No matches found for:', code)
+
+    const normalizedCode = code.trim().toLowerCase()
+
+    if (normalizedCode.length < 1) {
       return NextResponse.json({
         matched: false,
         exactMatch: false,
         code: null,
-        lensCode: null,
-        suggestions: []
+        suggestions: [],
+        allLensCodes: [],
+        message: 'Code too short for matching'
       })
     }
-    
-    const bestMatch = allMatches[0]
-    const isExactMatch = bestMatch.similarity === 1.0
-    
-    console.log('🎯 Best match:', {
-      input: code,
-      matched: bestMatch.record.retail_name,
-      code: bestMatch.record.retail_code,
-      similarity: bestMatch.similarity,
-      isExactMatch: isExactMatch
-    })
-    
-    // Format suggestions (top 3, excluding exact match if found)
-    const suggestions = allMatches
-      .filter(match => !isExactMatch || match.similarity < 1.0) // Exclude exact match from suggestions
-      .slice(0, 3)
-      .map(match => ({
-        retail_name: match.record.retail_name,
-        retail_code: match.record.retail_code,
-        source: match.source,
-        similarity: match.similarity
-      }))
 
-    if (isExactMatch) {
-      // Auto-fill only on exact match
-      const response: LensCodeMatch = {
+    console.log('🔍 Searching lens codes for:', normalizedCode)
+
+    // Get all lens codes for dropdown (combine both mock datasets)
+    const allLensCodes = [...mockRxCodes, ...mockStockCodes]
+
+    // Clean and split search terms into individual words
+    const searchWords = normalizedCode
+      .replace(/[^\w\s]/g, ' ') // Replace punctuation with spaces
+      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+      .trim()
+      .split(' ')
+      .filter(word => word.length > 1) // Filter out single character words
+
+    console.log('🔍 Search words:', searchWords)
+
+    // 1. Check for exact match
+    const exactMatch = allLensCodes.find(lens => 
+      lens.retail_code?.toLowerCase() === normalizedCode ||
+      lens.retail_name?.toLowerCase() === normalizedCode
+    )
+
+    if (exactMatch) {
+      console.log('✅ Exact lens code match found:', exactMatch.retail_code)
+      return NextResponse.json({
         matched: true,
         exactMatch: true,
-        code: bestMatch.record.retail_code,
+        code: exactMatch.retail_code,
         lensCode: {
-          retail_name: bestMatch.record.retail_name,
-          retail_code: bestMatch.record.retail_code,
-          source: bestMatch.source
+          id: exactMatch.id,
+          retail_name: exactMatch.retail_name,
+          retail_code: exactMatch.retail_code,
+          source: 'lens_database'
         },
-        suggestions: suggestions
-      }
-      
-      console.log('✅ Exact lens code match found:', {
-        input: code,
-        matched: response.matched,
-        exactMatch: response.exactMatch,
-        bestMatch: response.lensCode
+        suggestions: [],
+        allLensCodes: allLensCodes.map(l => ({
+          id: l.id,
+          retail_name: l.retail_name,
+          retail_code: l.retail_code,
+          source: 'lens_database'
+        })),
+        searchWords
       })
-      
-      return NextResponse.json(response)
-    } else {
-      // Return suggestions only, no auto-fill
-      const response: LensCodeMatch = {
-        matched: false,
-        exactMatch: false,
-        code: null,
-        lensCode: null,
-        suggestions: suggestions
-      }
-      
-      console.log('💡 Lens code suggestions found:', {
-        input: code,
-        suggestionsCount: suggestions.length,
-        topSuggestion: suggestions[0]?.retail_name
-      })
-      
-      return NextResponse.json(response)
     }
+
+    // 2. Word-by-word substring matching
+    const wordMatches: any[] = []
     
+    if (searchWords.length > 0) {
+      for (const lens of allLensCodes) {
+        if (!lens.retail_name && !lens.retail_code) continue
+        
+        let matchScore = 0
+        const lensNameLower = (lens.retail_name || '').toLowerCase()
+        const lensCodeLower = (lens.retail_code || '').toLowerCase()
+        
+        // Check how many search words match in the lens name or code
+        for (const word of searchWords) {
+          const wordLower = word.toLowerCase()
+          if (lensNameLower.includes(wordLower) || lensCodeLower.includes(wordLower)) {
+            matchScore += 1
+          }
+        }
+        
+        // If at least one word matches, include in results
+        if (matchScore > 0) {
+          wordMatches.push({
+            ...lens,
+            matchScore,
+            matchPercentage: (matchScore / searchWords.length) * 100
+          })
+        }
+      }
+      
+      // Sort by match score (descending) and then by name
+      wordMatches.sort((a, b) => {
+        if (b.matchScore !== a.matchScore) {
+          return b.matchScore - a.matchScore
+        }
+        return (a.retail_name || a.retail_code || '').localeCompare(b.retail_name || b.retail_code || '')
+      })
+    }
+
+    // Format suggestions (top matches)
+    const suggestions = wordMatches
+      .slice(0, 10)
+      .map(lens => ({
+        id: lens.id,
+        retail_name: lens.retail_name,
+        retail_code: lens.retail_code,
+        source: 'lens_database',
+        matchType: lens.matchScore === searchWords.length ? 'full_word_match' : 'partial_word_match',
+        matchScore: lens.matchScore,
+        matchPercentage: lens.matchPercentage
+      }))
+
+    // Format all lens codes for dropdown
+    const formattedAllLensCodes = allLensCodes.map(l => ({
+      id: l.id,
+      retail_name: l.retail_name,
+      retail_code: l.retail_code,
+      source: 'lens_database'
+    }))
+
+    console.log(`📋 Found ${suggestions.length} lens code suggestions`)
+
+    return NextResponse.json({
+      matched: false,
+      exactMatch: false,
+      code: null,
+      suggestions,
+      allLensCodes: formattedAllLensCodes,
+      searchWords,
+      message: suggestions.length > 0 
+        ? `Found ${suggestions.length} lens codes matching "${searchWords.join(', ')}"` 
+        : 'No matching lens codes found'
+    })
+
   } catch (error) {
-    console.error('❌ Error matching lens code:', error)
+    console.error('Error matching lens code:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

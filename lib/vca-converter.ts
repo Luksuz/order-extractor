@@ -34,7 +34,7 @@ export interface OrderData {
   LNAM?: string // Lens code (R;L)
   CustomerRetailName?: string // Product name
   TINT?: string // Tint code
-  ACOAT?: string // Coating code (R;L)
+  ACOAT?: string // Coating code (single value)
   COLR?: string // Color code (R;L)
   PANTO?: string // Pantoscopic tilt (R;L)
 

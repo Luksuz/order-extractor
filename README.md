@@ -144,7 +144,7 @@ const response = await fetch('/api/extract-order', {
     "IPD": "32.0;32.0",
     "LNAM": "OVMDXV;OVMDXV",
     "TINT": "Gray",
-    "ACOAT": "PT GREEN;PT GREEN"
+    "ACOAT": "PT GREEN"
   },
   "metadata": {
     "fileName": "prescription.jpg",
@@ -391,7 +391,7 @@ FED=55.0;55.0
 SEGHT=20.0;20.0
 LNAM=OVMDXV;OVMDXV
 TINT=Gray
-ACOAT=PT GREEN;PT GREEN
+ACOAT=PT GREEN
 ZTILT=8;8
 MBASE=6.00;6.00
 ```

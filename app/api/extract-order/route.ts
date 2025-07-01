@@ -31,13 +31,13 @@ const VCAOrderSchema = z.object({
   BCERUP: z.string().optional().describe("Vertical Decentration Up/Down (format: right;left, e.g., '0;0')"),
   MINTHKCD: z.string().optional().describe("Minimum Edge/Center Thickness (format: right;left, e.g., '0.51;0.51')"),
   MINCTR: z.string().optional().describe("Minimum Center Thickness (format: right;left, e.g., '1.64;1.64')"),
-  TINT: z.string().optional().describe("Tint Code"),
-  ACOAT: z.string().optional().describe("Coating Code (format: right;left, e.g., 'PT GREEN;PT GREEN')"),
+  TINT: z.string().optional().describe("Tint Code (single value, e.g., 'GRAY')"),
+  ACOAT: z.string().optional().describe("Coating Code (single value, e.g., 'PT GREEN')"),
   PRVIN: z.string().optional().describe("Horizontal Prism Direction (format: right;left, e.g., '3;2')"),
   PRVUP: z.string().optional().describe("Vertical Prism Direction (format: right;left, e.g., '1.5;1')"),
   COLR: z.string().optional().describe("Color Code (format: right;left, e.g., 'Gray;Gray')"),
   ShopNumber: z.string().optional().describe("ERP Query Number"),
-  CustomerRetailName: z.string().nullable().optional().describe("The retail name of the customer")
+  CustomerRetailName: z.string().nullable().optional().describe("The retail name of the customer"),
 })
 
 export async function POST(request: NextRequest) {
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
 
     // Initialize the LLM with structured output
     const llm = new ChatOpenAI({
-      modelName: "gpt-4o",
+      modelName: process.env.OPENAI_MODEL_NAME || "gpt-4o",
       temperature: 0,
       maxTokens: 5000,
       apiKey: OPENAI_API_KEY,
@@ -108,8 +108,8 @@ Frame & Measurements (use right;left format where applicable):
 
 Advanced Specifications:
 - LNAM: Lens Code 
-- TINT: Tint Code
-- ACOAT: Coating Code (e.g., "PT GREEN;PT GREEN")
+- TINT: Tint Code (single value, e.g., "GRAY")
+- ACOAT: Coating Code (single value, e.g., "PT GREEN")
 - COLR: Color Code (e.g., "Gray;Gray")
 - PANTO: Pantoscopic Tilt
 - SEGHT: Segment Height
@@ -120,7 +120,8 @@ Advanced Specifications:
 - CustomerRetailName: Terminal Sales Product Name
 
 Important formatting rules:
-- Use semicolon (;) to separate right and left eye values
+- Use semicolon (;) to separate right and left eye values for prescription fields
+- Tint and coating codes are single values that apply to both eyes
 - Leave fields empty if not visible in the image
 - For single eye prescriptions, use appropriate format
 - Extract all visible text and numbers accurately`,

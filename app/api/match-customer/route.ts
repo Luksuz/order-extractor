@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Normalize the name for comparison (case insensitive, trim whitespace)
-    const normalizedSearchName = name.trim()
+    const normalizedSearchName = name.trim().toLowerCase()
 
     if (normalizedSearchName.length < 2) {
       return NextResponse.json({
@@ -192,9 +192,9 @@ export async function POST(request: NextRequest) {
       .from('customer')
       .select('id, code, name, address1, address2, zip_postal_code, city, description')
       .ilike('name', normalizedSearchName)
-      .limit(1)
+      .limit(10) // Get more potential matches for better exact match detection
 
-    console.log('🔍 Exact match customers:', customers)
+    console.log('🔍 Exact match candidates:', customers)
 
     if (error) {
       console.error('Supabase query error:', error)
@@ -207,11 +207,22 @@ export async function POST(request: NextRequest) {
     let exactMatchFound = false
     let exactMatchCustomer = null
 
-    // Check for true exact match
+    // Check for true exact match with improved normalization
     if (customers && customers.length > 0) {
-      const exactMatch = customers.find(c => 
-        c.name?.toLowerCase().trim() === normalizedSearchName.toLowerCase()
-      )
+      const exactMatch = customers.find(c => {
+        if (!c.name) return false
+        
+        // Normalize both names consistently
+        const customerNameNormalized = c.name.toLowerCase().trim()
+        const searchNameNormalized = normalizedSearchName.toLowerCase().trim()
+        
+        // Check exact match
+        const isExact = customerNameNormalized === searchNameNormalized
+        
+        console.log(`🔍 Comparing: "${searchNameNormalized}" === "${customerNameNormalized}" = ${isExact}`)
+        
+        return isExact
+      })
       
       if (exactMatch) {
         exactMatchFound = true

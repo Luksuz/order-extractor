@@ -49,22 +49,45 @@ function calculateSimilarity(str1: string, str2: string): number {
   const s1 = str1.toLowerCase().trim()
   const s2 = str2.toLowerCase().trim()
   
+  // Check for exact match first
   if (s1 === s2) return 1.0
   
-  // Simple similarity calculation based on common characters and length
+  // Check for exact match ignoring extra whitespace
+  const s1Normalized = s1.replace(/\s+/g, ' ')
+  const s2Normalized = s2.replace(/\s+/g, ' ')
+  if (s1Normalized === s2Normalized) return 1.0
+  
+  // If one contains the other exactly (useful for partial codes/names)
+  if (s1.length > 0 && s2.length > 0) {
+    if (s1 === s2 || s1.includes(s2) && s2.length === s1.length) return 1.0
+    if (s2.includes(s1) && s1.length === s2.length) return 1.0
+  }
+  
+  // Fallback to similarity calculation for partial matches
   const longer = s1.length > s2.length ? s1 : s2
   const shorter = s1.length > s2.length ? s2 : s1
   
   if (longer.length === 0) return 1.0
   
+  // Use a better similarity algorithm - Levenshtein-like
   let matches = 0
+  let totalPossible = longer.length
+  
+  // Count exact character matches in sequence
   for (let i = 0; i < shorter.length; i++) {
-    if (longer.includes(shorter[i])) {
+    if (i < longer.length && shorter[i] === longer[i]) {
       matches++
     }
   }
   
-  return matches / longer.length
+  // Add partial credit for character presence
+  for (let i = 0; i < shorter.length; i++) {
+    if (longer.includes(shorter[i])) {
+      matches += 0.3 // Small bonus for containing the character
+    }
+  }
+  
+  return Math.min(matches / totalPossible, 1.0)
 }
 
 function findBestMatches(
@@ -116,15 +139,26 @@ export async function POST(request: NextRequest) {
     
     console.log('🔍 Matching lens code:', code)
     
+    // Normalize the search term for better matching
+    const normalizedSearchCode = code.trim()
+    
     // Search in both rx_code and stock_code tables
-    const rxMatches = findBestMatches(code, mockRxCodes, 'rx_code')
-    const stockMatches = findBestMatches(code, mockStockCodes, 'stock_code')
+    const rxMatches = findBestMatches(normalizedSearchCode, mockRxCodes, 'rx_code')
+    const stockMatches = findBestMatches(normalizedSearchCode, mockStockCodes, 'stock_code')
     
     // Combine and sort all matches
     const allMatches = [...rxMatches, ...stockMatches]
       .sort((a, b) => b.similarity - a.similarity)
     
+    console.log('🔍 All matches found:', allMatches.map(m => ({
+      name: m.record.retail_name,
+      code: m.record.retail_code,
+      similarity: m.similarity,
+      source: m.source
+    })))
+    
     if (allMatches.length === 0) {
+      console.log('❌ No matches found for:', code)
       return NextResponse.json({
         matched: false,
         exactMatch: false,
@@ -136,6 +170,14 @@ export async function POST(request: NextRequest) {
     
     const bestMatch = allMatches[0]
     const isExactMatch = bestMatch.similarity === 1.0
+    
+    console.log('🎯 Best match:', {
+      input: code,
+      matched: bestMatch.record.retail_name,
+      code: bestMatch.record.retail_code,
+      similarity: bestMatch.similarity,
+      isExactMatch: isExactMatch
+    })
     
     // Format suggestions (top 3, excluding exact match if found)
     const suggestions = allMatches

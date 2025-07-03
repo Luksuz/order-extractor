@@ -8,18 +8,6 @@ interface CoatingCodeRecord {
   created_at: string
 }
 
-// Mock coating codes for development - replace with actual database queries
-const mockCoatingCodes: CoatingCodeRecord[] = [
-  { id: 1, retail_name: 'Anti-Reflective Standard', retail_code: 'AR_STD', created_at: '2024-01-01T00:00:00Z' },
-  { id: 2, retail_name: 'Anti-Reflective Premium', retail_code: 'AR_PREM', created_at: '2024-01-01T00:00:00Z' },
-  { id: 3, retail_name: 'Premium Green Coating', retail_code: 'PT GREEN', created_at: '2024-01-01T00:00:00Z' },
-  { id: 4, retail_name: 'Blue Light Protection', retail_code: 'BLUE_LIGHT', created_at: '2024-01-01T00:00:00Z' },
-  { id: 5, retail_name: 'Multi-Layer Coating', retail_code: 'MULTI_COAT', created_at: '2024-01-01T00:00:00Z' },
-  { id: 6, retail_name: 'Scratch Resistant', retail_code: 'SCRATCH_RES', created_at: '2024-01-01T00:00:00Z' },
-  { id: 7, retail_name: 'Hydrophobic Coating', retail_code: 'HYDRO_COAT', created_at: '2024-01-01T00:00:00Z' },
-  { id: 8, retail_name: 'Mirror Coating Silver', retail_code: 'MIRROR_SIL', created_at: '2024-01-01T00:00:00Z' },
-]
-
 export async function POST(request: NextRequest) {
   try {
     const { code } = await request.json()
@@ -46,22 +34,42 @@ export async function POST(request: NextRequest) {
 
     console.log('🔍 Searching coating codes for:', normalizedCode)
 
-    // Try to query database first, fall back to mock data
-    let coatingCodes = mockCoatingCodes
+    // Query database for coating codes
+    let coatingCodes: CoatingCodeRecord[] = []
     
     try {
-      // Uncomment when coating_codes table is available
-      // const { data: dbCodes, error } = await supabase
-      //   .from('coating_codes')
-      //   .select('id, retail_name, retail_code, created_at')
-      //   .not('retail_code', 'is', null)
-      //   .limit(20)
+      const { data: dbCodes, error } = await supabase
+        .from('rx_code')
+        .select('id, retail_name, retail_code, created_at')
+        .not('retail_code', 'is', null)
+        .limit(100)
       
-      // if (!error && dbCodes) {
-      //   coatingCodes = dbCodes
-      // }
+      if (error) {
+        console.error('Error querying coating_code:', error)
+        return NextResponse.json(
+          { error: 'Database query failed' },
+          { status: 500 }
+        )
+      }
+
+      if (!dbCodes || dbCodes.length === 0) {
+        return NextResponse.json({
+          matched: false,
+          exactMatch: false,
+          code: null,
+          suggestions: [],
+          allCoatingCodes: [],
+          message: 'No coating codes found in database'
+        })
+      }
+
+      coatingCodes = dbCodes
     } catch (dbError) {
-      console.warn('Database query failed, using mock data:', dbError)
+      console.error('Database query failed:', dbError)
+      return NextResponse.json(
+        { error: 'Database connection failed' },
+        { status: 500 }
+      )
     }
 
     // Clean and split search terms into individual words
@@ -188,21 +196,17 @@ export async function POST(request: NextRequest) {
 // GET endpoint to retrieve all coating codes
 export async function GET() {
   try {
-    let coatingCodes = mockCoatingCodes
-
-    // Try to query database first
-    try {
-      // Uncomment when coating_codes table is available
-      // const { data: dbCodes, error } = await supabase
-      //   .from('coating_codes')
-      //   .select('id, retail_name, retail_code, created_at')
-      //   .order('retail_name')
-      
-      // if (!error && dbCodes) {
-      //   coatingCodes = dbCodes
-      // }
-    } catch (dbError) {
-      console.warn('Database query failed, using mock data:', dbError)
+    const { data: coatingCodes, error } = await supabase
+      .from('rx_code')
+      .select('id, retail_name, retail_code, created_at')
+      .order('retail_name')
+    
+    if (error) {
+      console.error('Error querying coating_code:', error)
+      return NextResponse.json(
+        { error: 'Database query failed' },
+        { status: 500 }
+      )
     }
 
     return NextResponse.json({

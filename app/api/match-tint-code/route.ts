@@ -8,20 +8,6 @@ interface TintCodeRecord {
   created_at: string
 }
 
-// Mock tint codes for development - replace with actual database queries
-const mockTintCodes: TintCodeRecord[] = [
-  { id: 1, retail_name: 'Gray Tint', retail_code: 'GRAY', created_at: '2024-01-01T00:00:00Z' },
-  { id: 2, retail_name: 'Brown Tint', retail_code: 'BROWN', created_at: '2024-01-01T00:00:00Z' },
-  { id: 3, retail_name: 'Green Tint', retail_code: 'GREEN', created_at: '2024-01-01T00:00:00Z' },
-  { id: 4, retail_name: 'Blue Tint', retail_code: 'BLUE', created_at: '2024-01-01T00:00:00Z' },
-  { id: 5, retail_name: 'Yellow Tint', retail_code: 'YELLOW', created_at: '2024-01-01T00:00:00Z' },
-  { id: 6, retail_name: 'Pink Tint', retail_code: 'PINK', created_at: '2024-01-01T00:00:00Z' },
-  { id: 7, retail_name: 'Gradient Gray', retail_code: 'GRAD_GRAY', created_at: '2024-01-01T00:00:00Z' },
-  { id: 8, retail_name: 'Photochromic', retail_code: 'PHOTOCHROMIC', created_at: '2024-01-01T00:00:00Z' },
-  { id: 9, retail_name: 'Mirror Silver', retail_code: 'MIRROR_SIL', created_at: '2024-01-01T00:00:00Z' },
-  { id: 10, retail_name: 'No Tint', retail_code: 'CLEAR', created_at: '2024-01-01T00:00:00Z' },
-]
-
 export async function POST(request: NextRequest) {
   try {
     const { code } = await request.json()
@@ -48,22 +34,42 @@ export async function POST(request: NextRequest) {
 
     console.log('🔍 Searching tint codes for:', normalizedCode)
 
-    // Try to query database first, fall back to mock data
-    let tintCodes = mockTintCodes
+    // Query database for tint codes
+    let tintCodes: TintCodeRecord[] = []
     
     try {
-      // Uncomment when tint_codes table is available
-      // const { data: dbCodes, error } = await supabase
-      //   .from('tint_codes')
-      //   .select('id, retail_name, retail_code, created_at')
-      //   .not('retail_code', 'is', null)
-      //   .limit(20)
+      const { data: dbCodes, error } = await supabase
+        .from('rx_code')
+        .select('id, retail_name, retail_code, created_at')
+        .not('retail_code', 'is', null)
+        .limit(100)
       
-      // if (!error && dbCodes) {
-      //   tintCodes = dbCodes
-      // }
+      if (error) {
+        console.error('Error querying tint_code:', error)
+        return NextResponse.json(
+          { error: 'Database query failed' },
+          { status: 500 }
+        )
+      }
+
+      if (!dbCodes || dbCodes.length === 0) {
+        return NextResponse.json({
+          matched: false,
+          exactMatch: false,
+          code: null,
+          suggestions: [],
+          allTintCodes: [],
+          message: 'No tint codes found in database'
+        })
+      }
+
+      tintCodes = dbCodes
     } catch (dbError) {
-      console.warn('Database query failed, using mock data:', dbError)
+      console.error('Database query failed:', dbError)
+      return NextResponse.json(
+        { error: 'Database connection failed' },
+        { status: 500 }
+      )
     }
 
     // Clean and split search terms into individual words
@@ -190,21 +196,17 @@ export async function POST(request: NextRequest) {
 // GET endpoint to retrieve all tint codes
 export async function GET() {
   try {
-    let tintCodes = mockTintCodes
-
-    // Try to query database first
-    try {
-      // Uncomment when tint_codes table is available
-      // const { data: dbCodes, error } = await supabase
-      //   .from('tint_codes')
-      //   .select('id, retail_name, retail_code, created_at')
-      //   .order('retail_name')
-      
-      // if (!error && dbCodes) {
-      //   tintCodes = dbCodes
-      // }
-    } catch (dbError) {
-      console.warn('Database query failed, using mock data:', dbError)
+    const { data: tintCodes, error } = await supabase
+      .from('rx_code')
+      .select('id, retail_name, retail_code, created_at')
+      .order('retail_name')
+    
+    if (error) {
+      console.error('Error querying tint_code:', error)
+      return NextResponse.json(
+        { error: 'Database query failed' },
+        { status: 500 }
+      )
     }
 
     return NextResponse.json({

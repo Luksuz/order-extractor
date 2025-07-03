@@ -20,13 +20,13 @@ const VCAOrderSchema = z.object({
   PRVA: z.string().optional().describe("Prescription Prism Base Direction (format: right;left, e.g., '0;0')"),
   IPD: z.string().optional().describe("Interpupillary Distance Far (format: right;left, e.g., '30.5;30.5')"),
   NPD: z.string().optional().describe("Near Pupillary Distance (format: right;left, e.g., '28.57;28.57')"),
-  HBOX: z.string().optional().describe("Frame Width (format: right;left, e.g., '44.95;44.97')"),
-  VBOX: z.string().optional().describe("Frame Height (format: right;left, e.g., '39.96;40.01')"),
+  HBOX: z.string().optional().describe("Frame Width [A] (format: right;left, e.g., '44.95;44.97')"),
+  VBOX: z.string().optional().describe("Frame Height [B] (format: right;left, e.g., '39.96;40.01')"),
   DBL: z.string().optional().describe("Distance Between Lenses - Bridge Width (single value, e.g., '20')"),
   FED: z.string().optional().describe("Frame Effective Diameter Diagonal (format: right;left, e.g., '49.84;49.92')"),
   BVD: z.string().optional().describe("Back Vertex Distance (format: right;left, e.g., '13;13')"),
   PANTO: z.string().optional().describe("Pantoscopic Tilt (format: right;left)"),
-  SEGHT: z.string().optional().describe("Segment Height (format: right;left, e.g., '28.04;28.02')"),
+  SEGHT: z.string().optional().describe("Pupil Height HT (format: right;left, e.g., '28.04;28.02')"),
   BCERIN: z.string().optional().describe("Horizontal Decentration In/Out (format: right;left, e.g., '0;0')"),
   BCERUP: z.string().optional().describe("Vertical Decentration Up/Down (format: right;left, e.g., '0;0')"),
   MINTHKCD: z.string().optional().describe("Minimum Edge/Center Thickness (format: right;left, e.g., '0.51;0.51')"),
@@ -99,12 +99,16 @@ Prescription Values (use right;left format):
 Frame & Measurements (use right;left format where applicable):
 - IPD: Interpupillary Distance Far (e.g., "30.5;30.5")
 - NPD: Near Pupillary Distance (e.g., "28.57;28.57")
-- HBOX: Frame Width (e.g., "44.95;44.97")
-- VBOX: Frame Height (e.g., "39.96;40.01")
+- HBOX: Frame Width [A] - the horizontal frame dimension (e.g., "44.95;44.97")
+- VBOX: Frame Height [B] - the vertical frame dimension (e.g., "39.96;40.01")
 - DBL: Bridge Width (single value, e.g., "20")
 - FED: Frame Effective Diameter (e.g., "49.84;49.92")
-- SEGHT: Segment Height (e.g., "28.04;28.02")
+- SEGHT: Pupil Height HT - the vertical distance from the bottom of the lens to the pupil center (e.g., "28.04;28.02")
 - BVD: Back Vertex Distance (e.g., "13;13")
+
+IMPORTANT: Do not confuse HT (pupil height) with B (frame height):
+- HT (SEGHT): Pupil height - typically around 28mm, measured from bottom of lens to pupil center
+- B (VBOX): Frame height - the total vertical dimension of the frame, typically around 40-47mm
 
 Advanced Specifications:
 - LNAM: Lens Code 

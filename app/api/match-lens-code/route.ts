@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { supabase } from '@/lib/supabase'
 
 interface LensCodeRecord {
   id: number
@@ -23,27 +24,6 @@ interface LensCodeMatch {
     similarity?: number
   }>
 }
-
-// Mock data for development - replace with actual database queries
-const mockRxCodes: LensCodeRecord[] = [
-  { id: 1, retail_name: 'Progressive Standard', retail_code: 'PROG_STD', created_at: '2024-01-01T00:00:00Z' },
-  { id: 2, retail_name: 'Progressive Premium', retail_code: 'PROG_PREM', created_at: '2024-01-01T00:00:00Z' },
-  { id: 3, retail_name: 'Single Vision CR39', retail_code: 'SV_CR39', created_at: '2024-01-01T00:00:00Z' },
-  { id: 4, retail_name: 'Single Vision Polycarbonate', retail_code: 'SV_POLY', created_at: '2024-01-01T00:00:00Z' },
-  { id: 5, retail_name: 'Bifocal Standard', retail_code: 'BIF_STD', created_at: '2024-01-01T00:00:00Z' },
-  { id: 6, retail_name: 'High Index 1.67', retail_code: 'HI_167', created_at: '2024-01-01T00:00:00Z' },
-  { id: 7, retail_name: 'Anti-Reflective Coating', retail_code: 'AR_COAT', created_at: '2024-01-01T00:00:00Z' },
-  { id: 8, retail_name: 'Photochromic Transitions', retail_code: 'PHOTO_TR', created_at: '2024-01-01T00:00:00Z' },
-]
-
-const mockStockCodes: LensCodeRecord[] = [
-  { id: 1, retail_name: 'OVMDXV Progressive', retail_code: 'OVMDXV', created_at: '2024-01-01T00:00:00Z' },
-  { id: 2, retail_name: 'OVMSXV Single Vision', retail_code: 'OVMSXV', created_at: '2024-01-01T00:00:00Z' },
-  { id: 3, retail_name: 'Standard Progressive', retail_code: 'STD_PROG', created_at: '2024-01-01T00:00:00Z' },
-  { id: 4, retail_name: 'Premium Progressive', retail_code: 'PREM_PROG', created_at: '2024-01-01T00:00:00Z' },
-  { id: 5, retail_name: 'Basic Single Vision', retail_code: 'BASIC_SV', created_at: '2024-01-01T00:00:00Z' },
-  { id: 6, retail_name: 'Polycarbonate Lens', retail_code: 'POLY_LENS', created_at: '2024-01-01T00:00:00Z' },
-]
 
 function calculateSimilarity(str1: string, str2: string): number {
   const s1 = str1.toLowerCase().trim()
@@ -151,8 +131,41 @@ export async function POST(request: NextRequest) {
 
     console.log('🔍 Searching lens codes for:', normalizedCode)
 
-    // Get all lens codes for dropdown (combine both mock datasets)
-    const allLensCodes = [...mockRxCodes, ...mockStockCodes]
+    // Query database for lens codes
+    let allLensCodes: LensCodeRecord[] = []
+    
+    try {
+      // Query rx_code table
+      const { data: rxCodes, error: rxError } = await supabase
+        .from('stock_code')
+        .select('id, retail_name, retail_code, created_at')
+        .not('retail_code', 'is', null)
+        .limit(100)
+      
+      if (rxError) {
+        console.error('Error querying rx_code:', rxError)
+      } else if (rxCodes) {
+        allLensCodes = [...allLensCodes, ...rxCodes]
+      }
+
+      if (allLensCodes.length === 0) {
+        return NextResponse.json({
+          matched: false,
+          exactMatch: false,
+          code: null,
+          suggestions: [],
+          allLensCodes: [],
+          message: 'No lens codes found in database'
+        })
+      }
+
+    } catch (dbError) {
+      console.error('Database query failed:', dbError)
+      return NextResponse.json(
+        { error: 'Database connection failed' },
+        { status: 500 }
+      )
+    }
 
     // Clean and split search terms into individual words
     const searchWords = normalizedCode

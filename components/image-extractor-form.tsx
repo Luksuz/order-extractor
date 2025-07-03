@@ -25,12 +25,12 @@ export default function ImageExtractorForm({
 }: ImageExtractorFormProps) {
   const [formData, setFormData] = useState<any>({
     // Provide default values for required fields
-    CLIENT: 'Wearer Name', // This will be used for display, but SHOPNUMBER will be sent as CLIENT in SOAP
-    SHOPNUMBER: 'Customer/Shop Name', // This will become the CLIENT field in SOAP submission
+    CLIENT: '', // This will be used for display, but SHOPNUMBER will be sent as CLIENT in SOAP
+    SHOPNUMBER: '', // This will become the CLIENT field in SOAP submission
     DO: 'B',
     // Default credentials
-    rxoffice_username: '380',
-    rxoffice_password: 'ZOHO123'
+    rxoffice_username: '',
+    rxoffice_password: ''
   })
 
   // Separate state for customer code and name
@@ -868,7 +868,6 @@ export default function ImageExtractorForm({
                       value={formData.rxoffice_username || ""}
                       onChange={(e) => handleInputChange('rxoffice_username', e.target.value)}
                       onKeyDown={(e) => handleKeyDown(e, 'rxoffice_password')}
-                      placeholder="RxOffice username"
                       className="h-8 text-sm"
                     />
                   </div>
@@ -880,7 +879,6 @@ export default function ImageExtractorForm({
                       value={formData.rxoffice_password || ""}
                       onChange={(e) => handleInputChange('rxoffice_password', e.target.value)}
                       onKeyDown={(e) => handleKeyDown(e, 'JOB')}
-                      placeholder="RxOffice password"
                       className="h-8 text-sm"
                     />
                   </div>
@@ -898,7 +896,6 @@ export default function ImageExtractorForm({
                       value={formData.JOB || ""}
                       onChange={(e) => handleInputChange('JOB', e.target.value)}
                       onKeyDown={(e) => handleKeyDown(e, 'ShopNumber')}
-                      placeholder="Order Number"
                       className="h-8 text-sm"
                     />
                   </div>
@@ -909,7 +906,6 @@ export default function ImageExtractorForm({
                       value={formData.ShopNumber || ""}
                       onChange={(e) => handleInputChange('ShopNumber', e.target.value)}
                       onKeyDown={(e) => handleKeyDown(e, 'CLIENT')}
-                      placeholder="ERP Query Number"
                       className="h-8 text-sm"
                     />
                   </div>
@@ -920,7 +916,6 @@ export default function ImageExtractorForm({
                       value={formData.CLIENT || ""}
                       onChange={(e) => handleInputChange('CLIENT', e.target.value)}
                       onKeyDown={(e) => handleKeyDown(e, 'SHOPNUMBER')}
-                      placeholder="Full name"
                       className="h-8 text-sm"
                     />
                   </div>
@@ -938,7 +933,6 @@ export default function ImageExtractorForm({
                           onFocus={() => setShowCustomerDropdown(true)}
                           onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 200)}
                           onKeyDown={(e) => handleKeyDown(e, 'customer-name')}
-                          placeholder="Customer Code"
                           className="h-8 text-sm"
                         />
                       </div>
@@ -953,7 +947,6 @@ export default function ImageExtractorForm({
                           onFocus={() => setShowCustomerDropdown(true)}
                           onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 200)}
                           onKeyDown={(e) => handleKeyDown(e, 'lens-name-search')}
-                          placeholder="Customer or Shop Name"
                           className="h-8 text-sm"
                         />
                       </div>
@@ -1040,7 +1033,6 @@ export default function ImageExtractorForm({
                       onFocus={() => setShowLensDropdown(true)}
                       onBlur={() => setTimeout(() => setShowLensDropdown(false), 200)}
                       onKeyDown={(e) => handleKeyDown(e, 'right-lens-code')}
-                      placeholder="Search lens name (e.g., Progressive Standard)"
                       className="h-8 text-sm"
                     />
                     <p className="text-xs text-gray-500 mt-1">💡 Start typing to see automatic suggestions from lens database</p>
@@ -1132,7 +1124,6 @@ export default function ImageExtractorForm({
                         value={parseVCAValue(formData.LNAM).right}
                         onChange={(e) => handleEyeFieldChange('LNAM', 'right', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, 'right-sph')}
-                        placeholder="OVMDXV"
                         className="h-7 text-center text-xs"
                       />
                     </div>
@@ -1144,7 +1135,6 @@ export default function ImageExtractorForm({
                         value={parseVCAValue(formData.SPH).right}
                         onChange={(e) => handleEyeFieldChange('SPH', 'right', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, 'right-cyl')}
-                        placeholder="-1.75"
                         className="h-7 text-center text-xs"
                       />
                     </div>
@@ -1156,7 +1146,6 @@ export default function ImageExtractorForm({
                         value={parseVCAValue(formData.CYL).right}
                         onChange={(e) => handleEyeFieldChange('CYL', 'right', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, 'right-axis')}
-                        placeholder="-0.5"
                         className="h-7 text-center text-xs"
                       />
                     </div>
@@ -1170,7 +1159,6 @@ export default function ImageExtractorForm({
                         value={parseVCAValue(formData.AX).right}
                         onChange={(e) => handleEyeFieldChange('AX', 'right', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, 'right-add')}
-                        placeholder="45"
                         className="h-7 text-center text-xs"
                       />
                     </div>
@@ -1183,7 +1171,6 @@ export default function ImageExtractorForm({
                         value={parseVCAValue(formData.ADD).right}
                         onChange={(e) => handleEyeFieldChange('ADD', 'right', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, 'left-lens-code')}
-                        placeholder="1.75"
                         className="h-7 text-center text-xs"
                       />
                     </div>
@@ -1200,7 +1187,6 @@ export default function ImageExtractorForm({
                         value={parseVCAValue(formData.LNAM).left}
                         onChange={(e) => handleEyeFieldChange('LNAM', 'left', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, 'left-sph')}
-                        placeholder="OVMDXV"
                         className="h-7 text-center text-xs"
                       />
                     </div>
@@ -1212,7 +1198,6 @@ export default function ImageExtractorForm({
                         value={parseVCAValue(formData.SPH).left}
                         onChange={(e) => handleEyeFieldChange('SPH', 'left', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, 'left-cyl')}
-                        placeholder="-1.75"
                         className="h-7 text-center text-xs"
                       />
                     </div>
@@ -1224,7 +1209,6 @@ export default function ImageExtractorForm({
                         value={parseVCAValue(formData.CYL).left}
                         onChange={(e) => handleEyeFieldChange('CYL', 'left', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, 'left-axis')}
-                        placeholder="-0.25"
                         className="h-7 text-center text-xs"
                       />
                     </div>
@@ -1238,7 +1222,6 @@ export default function ImageExtractorForm({
                         value={parseVCAValue(formData.AX).left}
                         onChange={(e) => handleEyeFieldChange('AX', 'left', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, 'left-add')}
-                        placeholder="180"
                         className="h-7 text-center text-xs"
                       />
                     </div>
@@ -1251,7 +1234,6 @@ export default function ImageExtractorForm({
                         value={parseVCAValue(formData.ADD).left}
                         onChange={(e) => handleEyeFieldChange('ADD', 'left', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, 'right-pd')}
-                        placeholder="1.75"
                         className="h-7 text-center text-xs"
                       />
                     </div>
@@ -1289,7 +1271,6 @@ export default function ImageExtractorForm({
                         value={parseVCAValue(formData.IPD).right}
                         onChange={(e) => handleEyeFieldChange('IPD', 'right', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, 'right-npd')}
-                        placeholder="28.5"
                         className="h-6 text-center text-xs"
                       />
                     </div>
@@ -1302,7 +1283,6 @@ export default function ImageExtractorForm({
                         value={parseVCAValue(formData.NPD).right}
                         onChange={(e) => handleEyeFieldChange('NPD', 'right', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, 'right-ht')}
-                        placeholder=""
                         className="h-6 text-center text-xs"
                       />
                     </div>
@@ -1312,10 +1292,9 @@ export default function ImageExtractorForm({
                         type="number"
                         step="0.1"
                         min="0"
-                        value={parseVCAValue(formData.VBOX).right}
-                        onChange={(e) => handleEyeFieldChange('VBOX', 'right', e.target.value)}
+                        value={parseVCAValue(formData.SEGHT).right}
+                        onChange={(e) => handleEyeFieldChange('SEGHT', 'right', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, 'right-a')}
-                        placeholder="29"
                         className="h-6 text-center text-xs"
                       />
                     </div>
@@ -1328,7 +1307,6 @@ export default function ImageExtractorForm({
                         value={parseVCAValue(formData.HBOX).right}
                         onChange={(e) => handleEyeFieldChange('HBOX', 'right', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, 'right-b')}
-                        placeholder="50.69"
                         className="h-6 text-center text-xs"
                       />
                     </div>
@@ -1338,10 +1316,9 @@ export default function ImageExtractorForm({
                         type="number"
                         step="0.01"
                         min="0"
-                        value={parseVCAValue(formData.SEGHT).right}
-                        onChange={(e) => handleEyeFieldChange('SEGHT', 'right', e.target.value)}
+                        value={parseVCAValue(formData.VBOX).right}
+                        onChange={(e) => handleEyeFieldChange('VBOX', 'right', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, 'dbl')}
-                        placeholder="44.83"
                         className="h-6 text-center text-xs"
                       />
                     </div>
@@ -1354,7 +1331,6 @@ export default function ImageExtractorForm({
                         value={formData.DBL || ""}
                         onChange={(e) => handleInputChange('DBL', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, 'right-ed')}
-                        placeholder="17.74"
                         className="h-6 text-center text-xs"
                       />
                     </div>
@@ -1367,7 +1343,6 @@ export default function ImageExtractorForm({
                         value={parseVCAValue(formData.FED).right}
                         onChange={(e) => handleEyeFieldChange('FED', 'right', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, 'left-pd')}
-                        placeholder="54.7"
                         className="h-6 text-center text-xs"
                       />
                     </div>
@@ -1387,7 +1362,6 @@ export default function ImageExtractorForm({
                         value={parseVCAValue(formData.IPD).left}
                         onChange={(e) => handleEyeFieldChange('IPD', 'left', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, 'left-npd')}
-                        placeholder="28.5"
                         className="h-6 text-center text-xs"
                       />
                     </div>
@@ -1400,7 +1374,6 @@ export default function ImageExtractorForm({
                         value={parseVCAValue(formData.NPD).left}
                         onChange={(e) => handleEyeFieldChange('NPD', 'left', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, 'left-ht')}
-                        placeholder=""
                         className="h-6 text-center text-xs"
                       />
                     </div>
@@ -1410,10 +1383,9 @@ export default function ImageExtractorForm({
                         type="number"
                         step="0.1"
                         min="0"
-                        value={parseVCAValue(formData.VBOX).left}
-                        onChange={(e) => handleEyeFieldChange('VBOX', 'left', e.target.value)}
+                        value={parseVCAValue(formData.SEGHT).left}
+                        onChange={(e) => handleEyeFieldChange('SEGHT', 'left', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, 'left-a')}
-                        placeholder="29"
                         className="h-6 text-center text-xs"
                       />
                     </div>
@@ -1426,7 +1398,6 @@ export default function ImageExtractorForm({
                         value={parseVCAValue(formData.HBOX).left}
                         onChange={(e) => handleEyeFieldChange('HBOX', 'left', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, 'left-b')}
-                        placeholder="50.69"
                         className="h-6 text-center text-xs"
                       />
                     </div>
@@ -1436,10 +1407,9 @@ export default function ImageExtractorForm({
                         type="number"
                         step="0.01"
                         min="0"
-                        value={parseVCAValue(formData.SEGHT).left}
-                        onChange={(e) => handleEyeFieldChange('SEGHT', 'left', e.target.value)}
+                        value={parseVCAValue(formData.VBOX).left}
+                        onChange={(e) => handleEyeFieldChange('VBOX', 'left', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, 'left-ed')}
-                        placeholder="44.83"
                         className="h-6 text-center text-xs"
                       />
                     </div>
@@ -1460,7 +1430,6 @@ export default function ImageExtractorForm({
                         value={parseVCAValue(formData.FED).left}
                         onChange={(e) => handleEyeFieldChange('FED', 'left', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, 'ACOAT')}
-                        placeholder="54.7"
                         className="h-6 text-center text-xs"
                       />
                     </div>
@@ -1482,7 +1451,6 @@ export default function ImageExtractorForm({
                         onFocus={() => setShowCoatingDropdown(true)}
                         onBlur={() => setTimeout(() => setShowCoatingDropdown(false), 200)}
                         onKeyDown={(e) => handleKeyDown(e, 'TINT')}
-                        placeholder="PT GREEN"
                         className="h-8 text-sm"
                       />
                       <p className="text-xs text-gray-500 mt-1">💡 Auto-suggests from database</p>
@@ -1557,7 +1525,6 @@ export default function ImageExtractorForm({
                         onFocus={() => setShowTintDropdown(true)}
                         onBlur={() => setTimeout(() => setShowTintDropdown(false), 200)}
                         onKeyDown={(e) => handleKeyDown(e, 'COLOR')}
-                        placeholder="Tint"
                         className="h-8 text-sm"
                       />
                       <p className="text-xs text-gray-500 mt-1">💡 Auto-suggests from database</p>
@@ -1629,7 +1596,6 @@ export default function ImageExtractorForm({
                       value={formData.COLOR || ""}
                       onChange={(e) => handleInputChange('COLOR', e.target.value)}
                       onKeyDown={(e) => handleKeyDown(e, 'rxoffice_username')}
-                      placeholder="Color"
                       className="h-8 text-sm"
                     />
                   </div>

@@ -8,6 +8,15 @@ interface CoatingCodeRecord {
   created_at: string
 }
 
+// Function to normalize text for comparison (remove dots, extra spaces, etc.)
+function normalizeText(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/\./g, '') // Remove dots
+    .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+    .trim()
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { code } = await request.json()
@@ -19,7 +28,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const normalizedCode = code.trim().toLowerCase()
+    const normalizedCode = normalizeText(code)
 
     if (normalizedCode.length < 1) {
       return NextResponse.json({
@@ -45,7 +54,7 @@ export async function POST(request: NextRequest) {
         .limit(100)
       
       if (error) {
-        console.error('Error querying coating_code:', error)
+        console.error('Error querying rx_code:', error)
         return NextResponse.json(
           { error: 'Database query failed' },
           { status: 500 }
@@ -72,21 +81,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Clean and split search terms into individual words
-    const searchWords = normalizedCode
-      .replace(/[^\w\s]/g, ' ') // Replace punctuation with spaces
-      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
-      .trim()
-      .split(' ')
-      .filter(word => word.length > 1) // Filter out single character words
-
-    console.log('🔍 Search words:', searchWords)
-
-    // 1. Check for exact match
-    const exactMatch = coatingCodes.find(coating => 
-      coating.retail_code?.toLowerCase() === normalizedCode ||
-      coating.retail_name?.toLowerCase() === normalizedCode
-    )
+    // 1. Check for exact match (normalized)
+    const exactMatch = coatingCodes.find(coating => {
+      const normalizedCoatingCode = coating.retail_code ? normalizeText(coating.retail_code) : ''
+      const normalizedCoatingName = coating.retail_name ? normalizeText(coating.retail_name) : ''
+      return normalizedCoatingCode === normalizedCode || normalizedCoatingName === normalizedCode
+    })
 
     if (exactMatch) {
       console.log('✅ Exact coating code match found:', exactMatch.retail_code)
@@ -107,60 +107,36 @@ export async function POST(request: NextRequest) {
           retail_code: c.retail_code,
           source: 'coating_database'
         })),
-        searchWords
+        searchWords: [normalizedCode]
       })
     }
 
-    // 2. Word-by-word substring matching
-    const wordMatches: any[] = []
+    // 2. Use ILIKE for partial matching
+    const suggestions: any[] = []
     
-    if (searchWords.length > 0) {
-      for (const coating of coatingCodes) {
-        if (!coating.retail_name && !coating.retail_code) continue
-        
-        let matchScore = 0
-        const coatingNameLower = (coating.retail_name || '').toLowerCase()
-        const coatingCodeLower = (coating.retail_code || '').toLowerCase()
-        
-        // Check how many search words match in the coating name or code
-        for (const word of searchWords) {
-          const wordLower = word.toLowerCase()
-          if (coatingNameLower.includes(wordLower) || coatingCodeLower.includes(wordLower)) {
-            matchScore += 1
-          }
-        }
-        
-        // If at least one word matches, include in results
-        if (matchScore > 0) {
-          wordMatches.push({
-            ...coating,
-            matchScore,
-            matchPercentage: (matchScore / searchWords.length) * 100
-          })
-        }
-      }
+    try {
+      // Search using ILIKE for partial matches
+      const searchPattern = `%${normalizedCode}%`
       
-      // Sort by match score (descending) and then by name
-      wordMatches.sort((a, b) => {
-        if (b.matchScore !== a.matchScore) {
-          return b.matchScore - a.matchScore
-        }
-        return (a.retail_name || a.retail_code || '').localeCompare(b.retail_name || b.retail_code || '')
-      })
+      const { data: nameMatches, error: nameError } = await supabase
+        .from('rx_code')
+        .select('id, retail_name, retail_code, created_at')
+        .or(`retail_name.ilike.${searchPattern},retail_code.ilike.${searchPattern}`)
+        .not('retail_code', 'is', null)
+        .limit(10)
+      
+      if (!nameError && nameMatches) {
+        suggestions.push(...nameMatches.map(coating => ({
+          id: coating.id,
+          retail_name: coating.retail_name,
+          retail_code: coating.retail_code,
+          source: 'coating_database',
+          matchType: 'ilike_match'
+        })))
+      }
+    } catch (searchError) {
+      console.error('Error in ILIKE search:', searchError)
     }
-
-    // Format suggestions (top matches)
-    const suggestions = wordMatches
-      .slice(0, 10)
-      .map(coating => ({
-        id: coating.id,
-        retail_name: coating.retail_name,
-        retail_code: coating.retail_code,
-        source: 'coating_database',
-        matchType: coating.matchScore === searchWords.length ? 'full_word_match' : 'partial_word_match',
-        matchScore: coating.matchScore,
-        matchPercentage: coating.matchPercentage
-      }))
 
     // Format all coating codes for dropdown
     const formattedAllCoatingCodes = coatingCodes.map(c => ({
@@ -178,9 +154,9 @@ export async function POST(request: NextRequest) {
       code: null,
       suggestions,
       allCoatingCodes: formattedAllCoatingCodes,
-      searchWords,
+      searchWords: [normalizedCode],
       message: suggestions.length > 0 
-        ? `Found ${suggestions.length} coating codes matching "${searchWords.join(', ')}"` 
+        ? `Coating codes matching "${code}"` 
         : 'No matching coating codes found'
     })
 
@@ -202,7 +178,7 @@ export async function GET() {
       .order('retail_name')
     
     if (error) {
-      console.error('Error querying coating_code:', error)
+      console.error('Error querying rx_code:', error)
       return NextResponse.json(
         { error: 'Database query failed' },
         { status: 500 }

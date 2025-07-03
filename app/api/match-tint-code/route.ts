@@ -8,6 +8,15 @@ interface TintCodeRecord {
   created_at: string
 }
 
+// Function to normalize text for comparison (remove dots, extra spaces, etc.)
+function normalizeText(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/\./g, '') // Remove dots
+    .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+    .trim()
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { code } = await request.json()
@@ -19,7 +28,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const normalizedCode = code.trim().toLowerCase()
+    const normalizedCode = normalizeText(code)
 
     if (normalizedCode.length < 1) {
       return NextResponse.json({
@@ -45,7 +54,7 @@ export async function POST(request: NextRequest) {
         .limit(100)
       
       if (error) {
-        console.error('Error querying tint_code:', error)
+        console.error('Error querying rx_code:', error)
         return NextResponse.json(
           { error: 'Database query failed' },
           { status: 500 }
@@ -72,21 +81,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Clean and split search terms into individual words
-    const searchWords = normalizedCode
-      .replace(/[^\w\s]/g, ' ') // Replace punctuation with spaces
-      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
-      .trim()
-      .split(' ')
-      .filter(word => word.length > 1) // Filter out single character words
-
-    console.log('🔍 Search words:', searchWords)
-
-    // 1. Check for exact match
-    const exactMatch = tintCodes.find(tint => 
-      tint.retail_code?.toLowerCase() === normalizedCode ||
-      tint.retail_name?.toLowerCase() === normalizedCode
-    )
+    // 1. Check for exact match (normalized)
+    const exactMatch = tintCodes.find(tint => {
+      const normalizedTintCode = tint.retail_code ? normalizeText(tint.retail_code) : ''
+      const normalizedTintName = tint.retail_name ? normalizeText(tint.retail_name) : ''
+      return normalizedTintCode === normalizedCode || normalizedTintName === normalizedCode
+    })
 
     if (exactMatch) {
       console.log('✅ Exact tint code match found:', exactMatch.retail_code)
@@ -107,60 +107,36 @@ export async function POST(request: NextRequest) {
           retail_code: t.retail_code,
           source: 'tint_database'
         })),
-        searchWords
+        searchWords: [normalizedCode]
       })
     }
 
-    // 2. Word-by-word substring matching
-    const wordMatches: any[] = []
+    // 2. Use ILIKE for partial matching
+    const suggestions: any[] = []
     
-    if (searchWords.length > 0) {
-      for (const tint of tintCodes) {
-        if (!tint.retail_name && !tint.retail_code) continue
-        
-        let matchScore = 0
-        const tintNameLower = (tint.retail_name || '').toLowerCase()
-        const tintCodeLower = (tint.retail_code || '').toLowerCase()
-        
-        // Check how many search words match in the tint name or code
-        for (const word of searchWords) {
-          const wordLower = word.toLowerCase()
-          if (tintNameLower.includes(wordLower) || tintCodeLower.includes(wordLower)) {
-            matchScore += 1
-          }
-        }
-        
-        // If at least one word matches, include in results
-        if (matchScore > 0) {
-          wordMatches.push({
-            ...tint,
-            matchScore,
-            matchPercentage: (matchScore / searchWords.length) * 100
-          })
-        }
-      }
+    try {
+      // Search using ILIKE for partial matches
+      const searchPattern = `%${normalizedCode}%`
       
-      // Sort by match score (descending) and then by name
-      wordMatches.sort((a, b) => {
-        if (b.matchScore !== a.matchScore) {
-          return b.matchScore - a.matchScore
-        }
-        return (a.retail_name || a.retail_code || '').localeCompare(b.retail_name || b.retail_code || '')
-      })
+      const { data: nameMatches, error: nameError } = await supabase
+        .from('rx_code')
+        .select('id, retail_name, retail_code, created_at')
+        .or(`retail_name.ilike.${searchPattern},retail_code.ilike.${searchPattern}`)
+        .not('retail_code', 'is', null)
+        .limit(10)
+      
+      if (!nameError && nameMatches) {
+        suggestions.push(...nameMatches.map(tint => ({
+          id: tint.id,
+          retail_name: tint.retail_name,
+          retail_code: tint.retail_code,
+          source: 'tint_database',
+          matchType: 'ilike_match'
+        })))
+      }
+    } catch (searchError) {
+      console.error('Error in ILIKE search:', searchError)
     }
-
-    // Format suggestions (top matches)
-    const suggestions = wordMatches
-      .slice(0, 10)
-      .map(tint => ({
-        id: tint.id,
-        retail_name: tint.retail_name,
-        retail_code: tint.retail_code,
-        source: 'tint_database',
-        matchType: tint.matchScore === searchWords.length ? 'full_word_match' : 'partial_word_match',
-        matchScore: tint.matchScore,
-        matchPercentage: tint.matchPercentage
-      }))
 
     // Format all tint codes for dropdown
     const formattedAllTintCodes = tintCodes.map(t => ({
@@ -178,9 +154,9 @@ export async function POST(request: NextRequest) {
       code: null,
       suggestions,
       allTintCodes: formattedAllTintCodes,
-      searchWords,
+      searchWords: [normalizedCode],
       message: suggestions.length > 0 
-        ? `Found ${suggestions.length} tint codes matching "${searchWords.join(', ')}"` 
+        ? `Tint codes matching "${code}"` 
         : 'No matching tint codes found'
     })
 
@@ -202,7 +178,7 @@ export async function GET() {
       .order('retail_name')
     
     if (error) {
-      console.error('Error querying tint_code:', error)
+      console.error('Error querying rx_code:', error)
       return NextResponse.json(
         { error: 'Database query failed' },
         { status: 500 }

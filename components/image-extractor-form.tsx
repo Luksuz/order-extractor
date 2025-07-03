@@ -990,9 +990,6 @@ export default function ImageExtractorForm({
                       {/* All customers dropdown */}
                       {allCustomers.length > 0 && (
                         <div>
-                          <div className="px-3 py-2 text-xs font-medium text-gray-500 bg-gray-50 border-b">
-                            📋 All Customers ({allCustomers.length})
-                          </div>
                           {allCustomers.slice(0, 20).map((customer, index) => (
                             <button
                               key={`all-${index}`}
@@ -1072,9 +1069,6 @@ export default function ImageExtractorForm({
                         {/* All lens codes dropdown */}
                         {allLensCodes.length > 0 && (
                           <div>
-                            <div className="px-3 py-2 text-xs font-medium text-gray-500 bg-gray-50 border-b">
-                              📋 All Lens Codes ({allLensCodes.length})
-                            </div>
                             {allLensCodes.slice(0, 20).map((lens, index) => (
                               <button
                                 key={`lens-all-${index}`}
@@ -1490,9 +1484,6 @@ export default function ImageExtractorForm({
                           {/* All coating codes dropdown */}
                           {allCoatingCodes.length > 0 && (
                             <div>
-                              <div className="px-3 py-2 text-xs font-medium text-gray-500 bg-gray-50 border-b">
-                                📋 All Coating Codes ({allCoatingCodes.length})
-                              </div>
                               {allCoatingCodes.slice(0, 15).map((coating, index) => (
                                 <button
                                   key={`coating-all-${index}`}
@@ -1564,9 +1555,7 @@ export default function ImageExtractorForm({
                           {/* All tint codes dropdown */}
                           {allTintCodes.length > 0 && (
                             <div>
-                              <div className="px-3 py-2 text-xs font-medium text-gray-500 bg-gray-50 border-b">
-                                📋 All Tint Codes ({allTintCodes.length})
-                              </div>
+                              
                               {allTintCodes.slice(0, 15).map((tint, index) => (
                                 <button
                                   key={`tint-all-${index}`}
